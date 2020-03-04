@@ -220,6 +220,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
+  memcpy(filename, file_name, sizeof(filename));
+  char *token, *save_ptr;
+  char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);;
+  token = strtok_r(filename, " ", &save_ptr);
+
+  memcpy(actualFileName, token, sizeof(token) + 1);
+
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -227,10 +236,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (actualFileName);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", actualFileName);
       goto done; 
     }
 
@@ -436,7 +445,7 @@ setup_stack (void **esp, const char* file_name)
 {
   uint8_t *kpage;
   bool success = false;
-  
+
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -447,62 +456,136 @@ setup_stack (void **esp, const char* file_name)
         palloc_free_page (kpage);
     }
 
-  char** s = palloc_get_page(PAL_USER | PAL_ZERO);
-  memcpy(s, file_name, sizeof(file_name));
-  int byte_size = 0;
-  //char** argv;
   char *token, *save_ptr;
-  int i = 0;
-  for (token = strtok_r (s, " ", &save_ptr); token != NULL;
-        token = strtok_r (NULL, " ", &save_ptr))
+  int argc = 0,i;
+
+  char * copy = malloc(strlen(file_name)+1);
+  strlcpy (copy, file_name, strlen(file_name)+1);
+
+
+  for (token = strtok_r (copy, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr))
+    argc++;
+
+
+  int *argv = calloc(argc,sizeof(int));
+
+  for (token = strtok_r (file_name, " ", &save_ptr),i=0; token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr),i++)
+    {
+      *esp -= strlen(token) + 1;
+      memcpy(*esp,token,strlen(token) + 1);
+
+      argv[i]=*esp;
+    }
+
+  while((int)*esp%4!=0)
   {
-    s[i] = token;
-    i++; 
-  }
-  char** argv = malloc(i * sizeof(char*));
-  int j = i - 1;
-  while(j >= 0) {
-    *esp -= (strlen(s[j]) + 1);
-    byte_size += (strlen(s[j]) + 1);
-    argv[i] = *esp;
-    memcpy(*esp, s[j], strlen(s[j]) + 1);
-    j--;
-  }
-  argv[i] = 0;
-  j = (size_t) *esp % 4;
-  if(j) {
-    *esp -= j;
-    byte_size += sizeof(char*);
-    memcpy(*esp, &argv[i], j);
+    *esp-=sizeof(char);
+    char x = 0;
+    memcpy(*esp,&x,sizeof(char));
   }
 
-  int k = i;
-  while(k >= 0) {
-    *esp -= sizeof(char*);
-    byte_size += sizeof(char*);
-    memcpy(*esp, &argv[i], sizeof(char*));
-    k--;
+  int zero = 0;
+
+  *esp-=sizeof(int);
+  memcpy(*esp,&zero,sizeof(int));
+
+  for(i=argc-1;i>=0;i--)
+  {
+    *esp-=sizeof(int);
+    memcpy(*esp,&argv[i],sizeof(int));
   }
 
-  token = *esp;
+  int pt = *esp;
+  *esp-=sizeof(int);
+  memcpy(*esp,&pt,sizeof(int));
 
-  *esp -= sizeof(char **);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &token, sizeof(char **));
-  *esp -= sizeof(int);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &i, sizeof(int));
-  *esp -= sizeof(void*);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &argv[i], sizeof(void *));
+  *esp-=sizeof(int);
+  memcpy(*esp,&argc,sizeof(int));
+
+  *esp-=sizeof(int);
+  memcpy(*esp,&zero,sizeof(int));
+
+  free(copy);
   free(argv);
-  free(s);
-  hex_dump(0, *esp, byte_size, 1);
-  hex_dump((int)*esp + byte_size, *esp, byte_size, 1);
-
-
 
   return success;
+  
+  // uint8_t *kpage;
+  // bool success = false;
+  
+  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // if (kpage != NULL) 
+  //   {
+  //     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  //     if (success)
+  //       *esp = PHYS_BASE;
+  //     else
+  //       palloc_free_page (kpage);
+  //   }
+
+  // char** s = palloc_get_page(PAL_USER | PAL_ZERO);
+  // memcpy(s, file_name, sizeof(file_name));
+  // int byte_size = 0;
+  // //char** argv;
+  // char *token, *save_ptr;
+  // int i = 0;
+  // for (token = strtok_r (s, " ", &save_ptr); token != NULL;
+  //       token = strtok_r (NULL, " ", &save_ptr))
+  // {
+  //   s[i] = token;
+  //   i++; 
+  // }
+  // //char** argv = malloc(i * sizeof(char*));
+  // char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
+  // int j = i - 1;
+  // while(j >= 0) {
+  //   *esp -= (strlen(s[j]) + 1);
+  //   byte_size += (strlen(s[j]) + 1);
+  //   argv[i] = *esp;
+  //   memcpy(*esp, s[j], strlen(s[j]) + 1);
+  //   j--;
+  // }
+  // argv[i] = 0;
+  // j = (size_t) *esp % 4;
+  // if(j) {
+  //   *esp -= j;
+  //   byte_size += sizeof(char*);
+  //   memcpy(*esp, &argv[i], j);
+  // }
+
+  // int k = i;
+  // while(k >= 0) {
+  //   *esp -= sizeof(char*);
+  //   byte_size += sizeof(char*);
+  //   memcpy(*esp, &argv[i], sizeof(char*));
+  //   k--;
+  // }
+
+  // token = *esp;
+
+  // *esp -= sizeof(char **);
+  // byte_size += sizeof(char*);
+  // memcpy(*esp, &token, sizeof(char **));
+  // *esp -= sizeof(int);
+  // byte_size += sizeof(char*);
+  // memcpy(*esp, &i, sizeof(int));
+  // *esp -= sizeof(void*);
+  // byte_size += sizeof(char*);
+  // memcpy(*esp, &argv[i], sizeof(void *));
+  // //free(argv);
+  // //free(s);
+  // palloc_free_page(argv);
+  // palloc_free_page(s);
+  // //hex_dump(0, *esp, byte_size, 1);
+  // //hex_dump((int)*esp + byte_size, *esp, byte_size, 1);
+  // hex_dump(PHYS_BASE - byte_size, *esp, byte_size, 1);
+
+
+
+  // return success;
+
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
@@ -510,7 +593,7 @@ setup_stack (void **esp, const char* file_name)
    If WRITABLE is true, the user process may modify the page;
    otherwise, it is read-only.
    UPAGE must not already be mapped.
-   KPAGE should probably be a page obtained from the user pool
+   KPAGE should probably be a page obtained from the userprogr pool
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
