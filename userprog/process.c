@@ -457,62 +457,111 @@ setup_stack (void **esp, const char* file_name)
         palloc_free_page (kpage);
     }
 
-  char** s = palloc_get_page(PAL_USER | PAL_ZERO);
-  memcpy(s, file_name, sizeof(file_name));
+  char* myesp = (char *)*esp;
+
+  char** temp_args = palloc_get_page(PAL_USER | PAL_ZERO);
+  char* fn_copy = palloc_get_page(PAL_USER | PAL_ZERO);
+  memcpy(fn_copy, file_name, strlen(file_name));
   int byte_size = 0;
-  //char** argv;
+
   char *token, *save_ptr;
-  int i = 0;
-  for (token = strtok_r (s, " ", &save_ptr); token != NULL;
+  int argc = 0;
+  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
         token = strtok_r (NULL, " ", &save_ptr))
   {
-    s[i] = token;
-    i++; 
-  }
-  //char** argv = malloc(i * sizeof(char*));
-  char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
-  int j = i - 1;
-  while(j >= 0) {
-    *esp -= (strlen(s[j]) + 1);
-    byte_size += (strlen(s[j]) + 1);
-    argv[i] = *esp;
-    memcpy(*esp, s[j], strlen(s[j]) + 1);
-    j--;
-  }
-  argv[i] = 0;
-  j = (size_t) *esp % 4;
-  if(j) {
-    *esp -= j;
-    byte_size += sizeof(char*);
-    memcpy(*esp, &argv[i], j);
+    temp_args[argc] = token;
+    argc++; 
   }
 
-  int k = i;
+  int stack_size = 4096;
+
+  char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
+  int j = argc - 1;
+  while(j >= 0) {
+    myesp -= (strlen(temp_args[j]) + 1);
+    if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+    }
+    byte_size += (strlen(temp_args[j]) + 1);
+    memcpy(myesp, temp_args[j], strlen(temp_args[j]) + 1);
+    argv[j] = myesp;
+    j--;
+  }
+  
+  argv[argc] = 0;
+  j = 4 - (byte_size % 4);
+  if(j) {
+    myesp -= j;
+    if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+    }
+
+    memcpy(myesp, &argv[argc], j);
+  }
+
+  int k = argc;
   while(k >= 0) {
-    *esp -= sizeof(char*);
-    byte_size += sizeof(char*);
-    memcpy(*esp, &argv[i], sizeof(char*));
+    myesp -= sizeof(char*);
+    if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+    }
+
+    memcpy(myesp, &argv[k], sizeof(char*));
     k--;
   }
 
-  token = *esp;
+  token = myesp;
 
-  *esp -= sizeof(char **);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &token, sizeof(char **));
-  *esp -= sizeof(int);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &i, sizeof(int));
-  *esp -= sizeof(void*);
-  byte_size += sizeof(char*);
-  memcpy(*esp, &argv[i], sizeof(void *));
-  //free(argv);
-  //free(s);
+  myesp -= sizeof(char **);
+  if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+  }
+
+  memcpy(myesp, &token, sizeof(char **));
+  myesp -= sizeof(int);
+  if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+  }
+
+  memcpy(myesp, &argc, sizeof(int));
+  myesp -= sizeof(void*);
+  if((int)myesp < PHYS_BASE - stack_size) {
+      palloc_free_page(argv);
+      palloc_free_page(temp_args);
+      palloc_free_page(fn_copy);
+      palloc_free_page(kpage);
+      return false;
+  }
+
+  memcpy(myesp, &argv[argc], sizeof(void *));
+
   palloc_free_page(argv);
-  palloc_free_page(s);
-  // hex_dump(0, *esp, byte_size, 1);
-  // hex_dump((int)*esp + byte_size, *esp, byte_size, 1);
-  hex_dump(PHYS_BASE - byte_size, *esp, byte_size, 1);
+  palloc_free_page(temp_args);
+  palloc_free_page(fn_copy);
+ 
+  size_t size = PHYS_BASE - (int)myesp;
+  hex_dump((int)myesp, myesp, size, 1);
+  *esp = myesp;
 
 
 
