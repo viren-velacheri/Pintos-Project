@@ -219,14 +219,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
+//PAL_ZERO | PAL_USER
   char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
-  memcpy(filename, file_name, sizeof(filename));
+  memcpy(filename, file_name, strlen(file_name) + 1);
   char *token, *save_ptr;
-  char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);;
+  char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);
   token = strtok_r(filename, " ", &save_ptr);
 
-  memcpy(actualFileName, token, sizeof(token) + 1);
+  memcpy(actualFileName, token, strlen(token) + 1);
 
 
   /* Allocate and activate page directory. */
@@ -562,8 +562,6 @@ setup_stack (void **esp, const char* file_name)
   size_t size = PHYS_BASE - (int)myesp;
   hex_dump((int)myesp, myesp, size, 1);
   *esp = myesp;
-
-
 
   return success;
 
