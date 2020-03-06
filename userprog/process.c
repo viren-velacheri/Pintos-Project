@@ -219,7 +219,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-//PAL_ZERO | PAL_USER
+
   char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
   memcpy(filename, file_name, strlen(file_name) + 1);
   char *token, *save_ptr;

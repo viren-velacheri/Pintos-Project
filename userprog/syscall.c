@@ -3,6 +3,8 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -15,6 +17,11 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
+  //printf ("system call!\n");
+  if(f->esp == NULL || pagedir_get_page (thread_current()->pagedir,
+    f->esp) == NULL || is_kernel_vaddr (esp))
+      pagedir_destroy (thread-current()->pagedir);
+
+  int sys_num = *(f->esp);
   thread_exit ();
 }
