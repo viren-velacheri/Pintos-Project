@@ -5,6 +5,8 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "devices/shutdown.h"
+
 
 static void syscall_handler (struct intr_frame *);
 
@@ -23,5 +25,58 @@ syscall_handler (struct intr_frame *f UNUSED)
       pagedir_destroy (thread_current()->pagedir);
 
   int sys_num = f->esp;
+  if(sys_num == SYS_HALT) 
+  {
+    shutdown_power_off();
+    return;
+  }
+  else if(sys_num == SYS_EXIT)
+  {
+
+  }
+  else if(sys_num == SYS_EXEC)
+  {
+
+  }
+  else if(sys_num == SYS_WAIT)
+  {
+
+  }
+  else if(sys_num == SYS_CREATE)
+  {
+
+  }
+  else if(sys_num == SYS_REMOVE)
+  {
+
+  }
+  else if(sys_num == SYS_OPEN)
+  {
+
+  }
+  else if(sys_num == SYS_FILESIZE)
+  {
+
+  }
+  else if(sys_num == SYS_READ)
+  {
+
+  }
+  else if(sys_num == SYS_WRITE)
+  {
+
+  }
+  else if(sys_num == SYS_SEEK)
+  {
+
+  }
+  else if(sys_num == SYS_TELL)
+  {
+
+  }
+  else if(sys_num == SYS_CLOSE)
+  {
+
+  }
   thread_exit ();
 }
