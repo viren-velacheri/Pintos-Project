@@ -19,9 +19,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   //printf ("system call!\n");
   if(f->esp == NULL || pagedir_get_page (thread_current()->pagedir,
-    f->esp) == NULL || is_kernel_vaddr (esp))
-      pagedir_destroy (thread-current()->pagedir);
+    f->esp) == NULL || is_kernel_vaddr (f->esp))
+      pagedir_destroy (thread_current()->pagedir);
 
-  int sys_num = *(f->esp);
+  int sys_num = f->esp;
   thread_exit ();
 }
