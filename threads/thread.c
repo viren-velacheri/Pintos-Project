@@ -205,6 +205,19 @@ thread_create (const char *name, int priority,
   return tid;
 }
 
+struct thread* get_thread_from_tid(tid_t tid) {
+  struct list_elem *e;
+  for (e = list_rbegin (&all_list); e != list_rend (&all_list);
+           e = list_prev (e))
+        {
+          struct thread *t = list_entry (e, struct thread, elem);
+          if(t->tid == tid) {
+            return t;
+          }
+        }
+        return NULL;
+}
+
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 
@@ -464,7 +477,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->hasWaited = 0;
+  sema_init(t->proc_wait, 0);
   t->magic = THREAD_MAGIC;
+  t->exit_status = 0;
 
   old_level = intr_disable();
   list_push_back (&all_list, &t->allelem);

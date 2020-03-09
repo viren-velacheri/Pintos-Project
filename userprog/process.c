@@ -41,7 +41,8 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  get_thread_from_tid(tid)->parent = thread_current();
   return tid;
 }
 
@@ -89,11 +90,16 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
 
-  while(1)
+  struct thread *t = get_thread_from_tid(child_tid);
+  if(t->status == THREAD_DYING || t == NULL || t->parent != thread_current() || t->hasWaited == 1) 
   {
-    //eepa
+    return -1;
   }
-  return -1;
+  else 
+  {
+    sema_down(t->parent->proc_wait);
+    return t->exit_status;
+  }
 }
 
 /* Free the current process's resources. */
@@ -455,7 +461,7 @@ setup_stack (void **esp, const char* file_name)
         *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
-    }
+    
 
   char* myesp = (char *)*esp;
 
@@ -564,6 +570,8 @@ setup_stack (void **esp, const char* file_name)
   *esp = myesp;
 
   return success;
+    }
+    return 0;
 
 }
 

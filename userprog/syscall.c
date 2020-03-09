@@ -22,9 +22,12 @@ syscall_handler (struct intr_frame *f UNUSED)
   //printf ("system call!\n");
   if(f->esp == NULL || pagedir_get_page (thread_current()->pagedir,
     f->esp) == NULL || is_kernel_vaddr (f->esp))
+    {
       pagedir_destroy (thread_current()->pagedir);
+      return;
+    }
 
-  int sys_num = f->esp;
+  int sys_num = *(int *)f->esp;
   if(sys_num == SYS_HALT) 
   {
     shutdown_power_off();
@@ -32,7 +35,11 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   else if(sys_num == SYS_EXIT)
   {
-
+    *(int *)f->esp++;
+    int status = *(int *) f->esp;
+    thread_current()->exit_status = status;
+    sema_up(thread_current()->parent->proc_wait);
+    process_exit();
   }
   else if(sys_num == SYS_EXEC)
   {
