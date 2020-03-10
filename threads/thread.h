@@ -96,6 +96,8 @@ struct thread
     int hasWaited;
     struct semaphore *proc_wait;
     int exit_status;
+    struct semaphore *exec_sema;
+    int childLoaded;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

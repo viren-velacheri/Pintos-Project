@@ -10,6 +10,20 @@
 
 static void syscall_handler (struct intr_frame *);
 
+int valid_pointer(void * ptr) {
+  if(ptr == NULL || pagedir_get_page (thread_current()->pagedir,
+    ptr) == NULL || is_kernel_vaddr (ptr))
+    {
+      return 0;
+    }
+    return 1;
+}
+
+int* get_argument(void *esp){
+  (int *)esp++;
+  return (int *)esp;
+}
+
 void
 syscall_init (void) 
 {
@@ -20,18 +34,85 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   //printf ("system call!\n");
-  if(f->esp == NULL || pagedir_get_page (thread_current()->pagedir,
-    f->esp) == NULL || is_kernel_vaddr (f->esp))
-    {
-      pagedir_destroy (thread_current()->pagedir);
-      return;
-    }
+  if(!valid_pointer(f->esp))
+  {
+    pagedir_destroy (thread_current()->pagedir);
+    return;
+  }
+  switch(*(int *)f->esp) {
+    case SYS_HALT:
+      shutdown_power_off();
+      break;
+    
+    case SYS_EXIT:
+      (int *)(f->esp)++;
+      int status = *(int *) f->esp;
+      thread_current()->exit_status = status;
+      sema_up(thread_current()->parent->proc_wait);
+      process_exit();
+      break;
+    
+    case SYS_EXEC:
+      (int *)(f->esp)++;
+      char * cmd_line = *(int *) f->esp; //(get_argument(f->esp));
+      if(!valid_pointer(cmd_line))
+        return;
+      tid_t child_tid = process_execute(cmd_line);
+      sema_down(thread_current()->exec_sema);
+      if(!thread_current()->childLoaded)
+        child_tid = -1;
+      f->eax = child_tid;
+      break;
+    
+    case SYS_WAIT:
+      (int *)(f->esp)++;
+      tid_t pid = *(int *) f->esp; //(get_argument(f->esp));
+      f->eax = process_wait(pid);
+      break;
+    
+    case SYS_CREATE:
 
+      break;
+    
+    case SYS_REMOVE:
+
+      break;
+    
+    case SYS_OPEN:
+
+      break;
+    
+    case SYS_FILESIZE:
+
+      break;
+    
+    case SYS_READ:
+
+      break;
+    
+    case SYS_WRITE:
+
+      break;
+    
+    case SYS_SEEK:
+
+      break;
+    
+    case SYS_TELL:
+
+      break;
+
+    case SYS_CLOSE:
+
+      break;
+  }
+  thread_exit ();
+
+  /*
   int sys_num = *(int *)f->esp;
   if(sys_num == SYS_HALT) 
   {
     shutdown_power_off();
-    return;
   }
   else if(sys_num == SYS_EXIT)
   {
@@ -85,5 +166,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   {
 
   }
-  thread_exit ();
+  */
+
 }

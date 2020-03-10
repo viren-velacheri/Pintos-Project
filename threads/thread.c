@@ -479,6 +479,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->hasWaited = 0;
   sema_init(t->proc_wait, 0);
+  sema_init(t->exec_sema, 0);
   t->magic = THREAD_MAGIC;
   t->exit_status = 0;
 

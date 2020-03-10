@@ -64,8 +64,14 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
+    sema_up(thread_current()->exec_sema);
     thread_exit ();
+  }
+  else {
+    thread_current()->childLoaded = 1;
+    sema_up(thread_current()->exec_sema);
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -97,6 +103,7 @@ process_wait (tid_t child_tid UNUSED)
   }
   else 
   {
+    t->hasWaited = 1;
     sema_down(t->parent->proc_wait);
     return t->exit_status;
   }
@@ -461,7 +468,7 @@ setup_stack (void **esp, const char* file_name)
         *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
-    
+    }
 
   char* myesp = (char *)*esp;
 
@@ -570,8 +577,6 @@ setup_stack (void **esp, const char* file_name)
   *esp = myesp;
 
   return success;
-    }
-    return 0;
 
 }
 
