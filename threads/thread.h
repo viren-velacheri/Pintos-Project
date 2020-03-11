@@ -92,8 +92,8 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-    struct thread *parent;
-    int hasWaited;
+    struct list_elem child_elem;
+    struct list child_list;
     struct semaphore *proc_wait;
     int exit_status;
     struct semaphore *exec_sema;

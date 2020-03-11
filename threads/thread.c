@@ -477,13 +477,19 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->hasWaited = 0;
+
   sema_init(t->proc_wait, 0);
   sema_init(t->exec_sema, 0);
   t->magic = THREAD_MAGIC;
   t->exit_status = 0;
+  list_init(&t->child_list);
+
+
 
   old_level = intr_disable();
+  //add t to calling thread's child list
+  list_push_front(&thread_current()->child_list, &t->child_elem);
+
   list_push_back (&all_list, &t->allelem);
   intr_set_level(old_level);
 }

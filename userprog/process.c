@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -42,7 +44,6 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  get_thread_from_tid(tid)->parent = thread_current();
   return tid;
 }
 
@@ -95,17 +96,25 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-
-  struct thread *t = get_thread_from_tid(child_tid);
-  if(t->status == THREAD_DYING || t == NULL || t->parent != thread_current() || t->hasWaited == 1) 
-  {
+  struct list_elem *e;
+  struct thread *parent = thread_current();
+  struct thread *child;
+  for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
+        e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      if(t->tid == child_tid) {
+        child = t;
+        e = list_end(&parent->child_list);
+      }
+    }
+  if(child == NULL || child->status == THREAD_DYING) 
     return -1;
-  }
   else 
   {
-    t->hasWaited = 1;
-    sema_down(t->parent->proc_wait);
-    return t->exit_status;
+    sema_down(child->proc_wait);
+    list_remove(&child->child_elem);
+    return child->exit_status;
   }
 }
 
@@ -115,6 +124,8 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  printf("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -248,6 +259,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  lock_acquire(file_lock);
   /* Open executable file. */
   file = filesys_open (actualFileName);
   if (file == NULL) 
@@ -327,6 +339,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
+  lock_release(file_lock);
 
   /* Set up stack. */
   if (!setup_stack (esp, file_name))

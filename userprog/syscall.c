@@ -6,6 +6,8 @@
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
+#include "filesys/filesys.h"
+#include "threads/synch.h"
 
 
 static void syscall_handler (struct intr_frame *);
@@ -28,12 +30,20 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(file_lock);
+}
+
+void exit(int status) {
+  thread_current()->exit_status = status;
+  //sema_down()
+  sema_up(thread_current()->proc_wait);
+  process_exit();
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf ("system call!\n");
+
   if(!valid_pointer(f->esp))
   {
     pagedir_destroy (thread_current()->pagedir);
@@ -46,17 +56,25 @@ syscall_handler (struct intr_frame *f UNUSED)
     
     case SYS_EXIT:
       (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
       int status = *(int *) f->esp;
+      exit(status);
+      /*
       thread_current()->exit_status = status;
-      sema_up(thread_current()->parent->proc_wait);
+      //sema_down()
+      sema_up(thread_current()->proc_wait);
       process_exit();
+      */
       break;
     
     case SYS_EXEC:
       (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
       char * cmd_line = *(int *) f->esp; //(get_argument(f->esp));
       if(!valid_pointer(cmd_line))
-        return;
+        exit(-1);
       tid_t child_tid = process_execute(cmd_line);
       sema_down(thread_current()->exec_sema);
       if(!thread_current()->childLoaded)
@@ -66,16 +84,38 @@ syscall_handler (struct intr_frame *f UNUSED)
     
     case SYS_WAIT:
       (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
       tid_t pid = *(int *) f->esp; //(get_argument(f->esp));
       f->eax = process_wait(pid);
       break;
     
     case SYS_CREATE:
-
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      char * file = *(int *) f->esp;
+      if(!valid_pointer(file))
+        return;
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      uint32_t initial_size = *(int *) f->esp;
+      lock_acquire(file_lock);
+      f->eax = filesys_create(file, initial_size);
+      lock_release(file_lock);
       break;
     
     case SYS_REMOVE:
-
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      char * file2 = *(int *) f->esp;
+      if(!valid_pointer(file2))
+        return;
+      lock_acquire(file_lock);
+      f->eax = filesys_remove(file2);
+      lock_release(file_lock);
       break;
     
     case SYS_OPEN:
