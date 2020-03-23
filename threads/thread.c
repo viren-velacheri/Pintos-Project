@@ -482,6 +482,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(t->exec_sema, 0);
   t->magic = THREAD_MAGIC;
   t->exit_status = 0;
+  t->curr_file_index = 2;
   list_init(&t->child_list);
 
 

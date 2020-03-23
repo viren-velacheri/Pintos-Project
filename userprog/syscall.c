@@ -119,15 +119,67 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_OPEN:
-
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      char * file3 = *(int *) f->esp;
+      if(!valid_pointer(file3))
+        return;
+      lock_acquire(file_lock);
+      struct file *open_file = filesys_open(file3);
+      lock_release(file_lock);
+      if(open_file == NULL) {
+        f->eax = -1;
+      } else {
+        struct thread *t = thread_current();
+        t->set_of_files[t->curr_file_index] = open_file;
+        f->eax = t->curr_file_index;
+        t->curr_file_index++;
+      }
       break;
     
     case SYS_FILESIZE:
-
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      int fd = *(int *) f->esp;
+      struct thread *t_size = thread_current();
+      if(fd < 2 || fd > t_size->curr_file_index) {
+        exit(-1);
+      }
+      struct file *file_at_index = t_size->set_of_files[fd];
+      lock_acquire(file_lock);
+      f->eax = file_length(file_at_index);
+      lock_release(file_lock);
       break;
     
     case SYS_READ:
-
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      int fd_read = *(int *) f->esp;
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      void *buffer = *(int *) f->esp;
+      if(!valid_pointer(buffer))
+        exit(-1);
+      (int *)(f->esp)++;
+      if(!valid_pointer(f->esp))
+        exit(-1);
+      unsigned size = *(int *) f->esp;
+      struct thread *t_read = thread_current();
+      if(fd_read == 0) {
+        f->eax = input_getc();
+        break;
+      }
+      if(fd < 2 || fd > t_read->curr_file_index) {
+        exit(-1);
+      }
+      struct file *file_at_index2 = t_read->set_of_files[fd];
+      lock_acquire(file_lock);
+      f->eax = file_read(file_at_index2, buffer, size);
+      lock_release(file_lock);
       break;
     
     case SYS_WRITE:

@@ -98,7 +98,8 @@ struct thread
     int exit_status;
     struct semaphore *exec_sema;
     int childLoaded;
-
+    struct file *set_of_files[128];
+    int curr_file_index;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
