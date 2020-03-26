@@ -30,13 +30,13 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(file_lock);
+  lock_init(&file_lock);
 }
 
 void exit(int status) {
   thread_current()->exit_status = status;
   //sema_down()
-  sema_up(thread_current()->proc_wait);
+  //sema_up(thread_current()->proc_wait);
   process_exit();
 }
 
@@ -76,7 +76,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       if(!valid_pointer(cmd_line))
         exit(-1);
       tid_t child_tid = process_execute(cmd_line);
-      sema_down(thread_current()->exec_sema);
+      sema_down(&get_thread_from_tid(child_tid)->exec_sema);
       if(!thread_current()->childLoaded)
         child_tid = -1;
       f->eax = child_tid;
@@ -101,9 +101,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       if(!valid_pointer(temp_esp))
         exit(-1);
       uint32_t initial_size = *(int *) temp_esp;
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = filesys_create(file, initial_size);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
     
     case SYS_REMOVE:
@@ -113,9 +113,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       char * file2 = *(int *) temp_esp;
       if(!valid_pointer(file2))
         return;
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = filesys_remove(file2);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
     
     case SYS_OPEN:
@@ -125,9 +125,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       char * file3 = *(int *)temp_esp;
       if(!valid_pointer(file3))
         return;
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       struct file *open_file = filesys_open(file3);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       if(open_file == NULL) {
         f->eax = -1;
       } else {
@@ -148,9 +148,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index = t_size->set_of_files[fd];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = file_length(file_at_index);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
     
     case SYS_READ:
@@ -177,9 +177,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index2 = t_read->set_of_files[fd_read];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = file_read(file_at_index2, buffer, size);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
     
     case SYS_WRITE:
@@ -202,10 +202,10 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index3 = t_write->set_of_files[fd_write];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       putbuf((const char *)buffer_write, size_write);
       f->eax = file_write(file_at_index3, buffer_write, size_write);
-      lock_release(file_lock);
+      lock_release(&file_lock);
 
       break;
     
@@ -223,9 +223,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index4 = t_seek->set_of_files[fd_seek];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = file_seek(file_at_index4, position);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
     
     case SYS_TELL:
@@ -238,9 +238,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index5 = t_tell->set_of_files[fd_tell];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = file_tell(file_at_index5);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
 
     case SYS_CLOSE:
@@ -253,9 +253,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index6 = t_close->set_of_files[fd_close];
-      lock_acquire(file_lock);
+      lock_acquire(&file_lock);
       f->eax = file_close(file_at_index6);
-      lock_release(file_lock);
+      lock_release(&file_lock);
       break;
   }
   thread_exit ();

@@ -199,6 +199,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  list_push_front(&thread_current()->child_list, &t->child_elem);
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -207,7 +208,8 @@ thread_create (const char *name, int priority,
 
 struct thread* get_thread_from_tid(tid_t tid) {
   struct list_elem *e;
-  for (e = list_rbegin (&all_list); e != list_rend (&all_list);
+  struct thread *cur = thread_current();
+  for (e = list_rbegin (&cur->child_list); e != list_rend (&cur->child_list);
            e = list_prev (e))
         {
           struct thread *t = list_entry (e, struct thread, elem);
@@ -478,8 +480,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
 
-  sema_init(t->proc_wait, 0);
-  sema_init(t->exec_sema, 0);
+  sema_init(&t->child_wait, 0);
+  sema_init(&t->parent_wait, 0);
+  sema_init(&t->exec_sema, 0);
   t->magic = THREAD_MAGIC;
   t->exit_status = 0;
   t->curr_file_index = 2;
@@ -489,7 +492,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   old_level = intr_disable();
   //add t to calling thread's child list
-  list_push_front(&thread_current()->child_list, &t->child_elem);
+  //list_push_front(&thread_current()->child_list, &t->child_elem);
 
   list_push_back (&all_list, &t->allelem);
   intr_set_level(old_level);

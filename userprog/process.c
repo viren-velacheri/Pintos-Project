@@ -66,12 +66,13 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
-    sema_up(thread_current()->exec_sema);
+    sema_up(&thread_current()->exec_sema);
     thread_exit ();
   }
   else {
+    //list_push_front(&thread_current()->child_list, &t->child_elem);
     thread_current()->childLoaded = 1;
-    sema_up(thread_current()->exec_sema);
+    sema_up(&thread_current()->exec_sema);
   }
 
   /* Start the user process by simulating a return from an
@@ -99,20 +100,26 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   struct thread *parent = thread_current();
   struct thread *child;
+  //if(parent->child_list != NULL) {
+    int i = 0;
   for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
         e = list_next (e))
     {
+      //ASSERT(0);
       struct thread *t = list_entry (e, struct thread, child_elem);
       if(t->tid == child_tid) {
         child = t;
-        e = list_end(&parent->child_list);
+        //e = list_end(&parent->child_list);
+        break;
       }
     }
+  //}
   if(child == NULL || child->status == THREAD_DYING) 
     return -1;
   else 
   {
-    sema_down(child->proc_wait);
+    sema_down(&parent->parent_wait);
+    sema_up(&child->child_wait);
     list_remove(&child->child_elem);
     return child->exit_status;
   }
@@ -127,6 +134,18 @@ process_exit (void)
 
   printf("%s: exit(%d)\n", cur->name, cur->exit_status);
 
+  struct list_elem *e;
+  struct thread *child;
+  
+  sema_up(&cur->parent_wait);
+  sema_down(&cur->child_wait);
+  for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
+        e = list_next (e))
+    {
+      child = list_entry (e, struct thread, child_elem);
+      sema_up(&child->child_wait);  
+    }
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -259,7 +278,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  lock_acquire(file_lock);
+  lock_acquire(&file_lock);
   /* Open executable file. */
   file = filesys_open (actualFileName);
   if (file == NULL) 
@@ -339,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-  lock_release(file_lock);
+  lock_release(&file_lock);
 
   /* Set up stack. */
   if (!setup_stack (esp, file_name))

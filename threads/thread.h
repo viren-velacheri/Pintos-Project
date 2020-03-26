@@ -94,9 +94,10 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem child_elem;
     struct list child_list;
-    struct semaphore *proc_wait;
+    struct semaphore child_wait;
+    struct semaphore parent_wait;
     int exit_status;
-    struct semaphore *exec_sema;
+    struct semaphore exec_sema;
     int childLoaded;
     struct file *set_of_files[128];
     int curr_file_index;
