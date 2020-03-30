@@ -31,6 +31,9 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *fn_temp;
+  char *fn;
+  char *save_ptr;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -40,8 +43,14 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  fn_temp = palloc_get_page (0);
+  if(fn_temp == NULL)
+    return TID_ERROR;
+  strlcpy(fn_temp, file_name, PGSIZE);
+  fn = strtok_r(fn_temp, " ", &save_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -118,10 +127,16 @@ process_wait (tid_t child_tid UNUSED)
     return -1;
   else 
   {
-    sema_down(&parent->parent_wait);
-    sema_up(&child->child_wait);
+    sema_down(&child->parent_wait);
+
+    lock_acquire(&status_lock);
+    int status = child->exit_status;
+    lock_release(&status_lock);
+
     list_remove(&child->child_elem);
-    return child->exit_status;
+    sema_up(&child->child_wait);
+
+    return status;
   }
 }
 
@@ -605,7 +620,7 @@ setup_stack (void **esp, const char* file_name)
   palloc_free_page(fn_copy);
  
   size_t size = PHYS_BASE - (int)myesp;
-  hex_dump((int)myesp, myesp, size, 1);
+  //hex_dump((int)myesp, myesp, size, 1);
   *esp = myesp;
 
   return success;

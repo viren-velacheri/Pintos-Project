@@ -31,19 +31,21 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
+  lock_init(&write_lock);
+  lock_init(&status_lock);
 }
 
 void exit(int status) {
+  lock_acquire(&status_lock);
   thread_current()->exit_status = status;
-  //sema_down()
-  //sema_up(thread_current()->proc_wait);
+  lock_release(&status_lock);
   process_exit();
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  void *temp_esp = f->esp;
+  char *temp_esp = f->esp;
   if(!valid_pointer(temp_esp))
   {
     pagedir_destroy (thread_current()->pagedir);
@@ -55,7 +57,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_EXIT:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int status = *(int *) temp_esp;
@@ -69,7 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_EXEC:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       char * cmd_line = *(int *) temp_esp; //(get_argument(f->esp));
@@ -78,12 +80,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       tid_t child_tid = process_execute(cmd_line);
       sema_down(&get_thread_from_tid(child_tid)->exec_sema);
       if(!thread_current()->childLoaded)
-        child_tid = -1;
+        child_tid = -2;
       f->eax = child_tid;
       break;
     
     case SYS_WAIT:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       tid_t pid = *(int *) temp_esp; //(get_argument(f->esp));
@@ -91,13 +93,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_CREATE:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       char * file = *(int *) temp_esp;
       if(!valid_pointer(file))
         return;
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       uint32_t initial_size = *(int *) temp_esp;
@@ -107,7 +109,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_REMOVE:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       char * file2 = *(int *) temp_esp;
@@ -119,7 +121,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_OPEN:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       char * file3 = *(int *)temp_esp;
@@ -139,7 +141,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_FILESIZE:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd = *(int *) temp_esp;
@@ -154,17 +156,17 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_READ:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_read = *(int *) temp_esp;
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       void *buffer = *(int *) temp_esp;
       if(!valid_pointer(buffer))
         exit(-1);
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       unsigned size = *(int *)temp_esp;
@@ -183,38 +185,51 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_WRITE:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_write = *(int *) temp_esp;
-      (int *)(temp_esp)++;
+      //printf("%d\n", fd_write);
+
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       const void *buffer_write = *(int *) temp_esp;
       if(!valid_pointer(buffer_write))
         exit(-1);
-      (int *)(temp_esp)++;
+
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       unsigned size_write = *(int *)temp_esp;
+
       struct thread *t_write = thread_current();
-      if(fd_write < 2 || fd_write > t_write->curr_file_index) {
+      if(fd_write < 0 || fd_write > t_write->curr_file_index) {
         exit(-1);
       }
       struct file *file_at_index3 = t_write->set_of_files[fd_write];
-      lock_acquire(&file_lock);
-      putbuf((const char *)buffer_write, size_write);
-      f->eax = file_write(file_at_index3, buffer_write, size_write);
-      lock_release(&file_lock);
-
+     
+      if(fd_write == 1) {
+        lock_acquire(&write_lock);
+        putbuf((char *)buffer_write, size_write);
+        f->eax = size_write;
+        lock_release(&write_lock);
+      }
+         
+      else if(fd_write > 1) {
+        lock_acquire(&file_lock);
+        f->eax = file_write(file_at_index3, buffer_write, size_write);
+        lock_release(&file_lock);
+      }
+    
       break;
     
     case SYS_SEEK:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_seek = *(int *) temp_esp;
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       unsigned position = *(int *)temp_esp;
@@ -229,7 +244,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     
     case SYS_TELL:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_tell = *(int *) temp_esp;
@@ -244,7 +259,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
 
     case SYS_CLOSE:
-      (int *)(temp_esp)++;
+      temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_close = *(int *) temp_esp;
