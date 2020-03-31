@@ -13,8 +13,8 @@
 static void syscall_handler (struct intr_frame *);
 
 int valid_pointer(void * ptr) {
-  if(ptr == NULL || pagedir_get_page (thread_current()->pagedir,
-    ptr) == NULL || is_kernel_vaddr (ptr))
+  if(ptr == NULL || is_kernel_vaddr (ptr) || pagedir_get_page
+    (thread_current()->pagedir, ptr) == NULL)
     {
       return 0;
     }
@@ -48,8 +48,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   char *temp_esp = f->esp;
   if(!valid_pointer(temp_esp))
   {
-    pagedir_destroy (thread_current()->pagedir);
-    return;
+    //pagedir_destroy (thread_current()->pagedir);
+    exit(-1);
   }
   switch(*(int *)temp_esp) {
     case SYS_HALT:
@@ -80,7 +80,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       tid_t child_tid = process_execute(cmd_line);
       sema_down(&get_thread_from_tid(child_tid)->exec_sema);
       if(!thread_current()->childLoaded)
-        child_tid = -2;
+        child_tid = -1;
       f->eax = child_tid;
       break;
     
@@ -98,7 +98,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       char * file = *(int *) temp_esp;
       if(!valid_pointer(file))
-        return;
+        exit(-1);
       temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
@@ -114,7 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       char * file2 = *(int *) temp_esp;
       if(!valid_pointer(file2))
-        return;
+        exit(-1);
       lock_acquire(&file_lock);
       f->eax = filesys_remove(file2);
       lock_release(&file_lock);
@@ -126,7 +126,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       char * file3 = *(int *)temp_esp;
       if(!valid_pointer(file3))
-        return;
+        exit(-1);
       lock_acquire(&file_lock);
       struct file *open_file = filesys_open(file3);
       lock_release(&file_lock);
@@ -268,12 +268,15 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       }
       struct file *file_at_index6 = t_close->set_of_files[fd_close];
+      t_close->set_of_files[fd_close] = NULL;
+      if(file_at_index6 == NULL)
+        exit(-1);
       lock_acquire(&file_lock);
       f->eax = file_close(file_at_index6);
       lock_release(&file_lock);
       break;
   }
-  thread_exit ();
+  //thread_exit ();
 
   /*
   int sys_num = *(int *)f->esp;

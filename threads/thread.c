@@ -183,7 +183,6 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -202,18 +201,19 @@ thread_create (const char *name, int priority,
   list_push_front(&thread_current()->child_list, &t->child_elem);
   /* Add to run queue. */
   thread_unblock (t);
-
+  
   return tid;
 }
 
 struct thread* get_thread_from_tid(tid_t tid) {
   struct list_elem *e;
   struct thread *cur = thread_current();
-  for (e = list_rbegin (&cur->child_list); e != list_rend (&cur->child_list);
-           e = list_prev (e))
+  for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
+           e = list_next (e))
         {
           struct thread *t = list_entry (e, struct thread, elem);
           if(t->tid == tid) {
+            printf("found child\n");
             return t;
           }
         }

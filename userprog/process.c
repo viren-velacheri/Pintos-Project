@@ -51,8 +51,10 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  //printf("we are here\n");
   return tid;
 }
 
@@ -106,11 +108,13 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  // while(1){}
+  // return -1;
+  
   struct list_elem *e;
   struct thread *parent = thread_current();
   struct thread *child;
-  //if(parent->child_list != NULL) {
-    int i = 0;
+
   for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
         e = list_next (e))
     {
@@ -122,8 +126,8 @@ process_wait (tid_t child_tid UNUSED)
         break;
       }
     }
-  //}
-  if(child == NULL || child->status == THREAD_DYING) 
+  
+  if(child == NULL) //|| child->status == THREAD_DYING) 
     return -1;
   else 
   {
