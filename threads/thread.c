@@ -199,6 +199,7 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   list_push_front(&thread_current()->child_list, &t->child_elem);
+
   /* Add to run queue. */
   thread_unblock (t);
   
@@ -211,9 +212,9 @@ struct thread* get_thread_from_tid(tid_t tid) {
   for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
            e = list_next (e))
         {
-          struct thread *t = list_entry (e, struct thread, elem);
+          struct thread *t = list_entry (e, struct thread, child_elem);
           if(t->tid == tid) {
-            printf("found child\n");
+            //printf("found child\n");
             return t;
           }
         }

@@ -13,8 +13,9 @@
 static void syscall_handler (struct intr_frame *);
 
 int valid_pointer(void * ptr) {
-  if(ptr == NULL || is_kernel_vaddr (ptr) || pagedir_get_page
-    (thread_current()->pagedir, ptr) == NULL)
+
+  if(ptr == NULL || is_kernel_vaddr (ptr) || thread_current()->pagedir == NULL ||
+  pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
     {
       return 0;
     }
