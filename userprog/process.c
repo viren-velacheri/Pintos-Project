@@ -51,10 +51,10 @@ process_execute (const char *file_name)
  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
- 
+  
+  palloc_free_page(fn_temp);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  //printf("we are here\n");
   return tid;
 }
  
@@ -78,10 +78,9 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) {
     sema_up(&thread_current()->exec_sema);
-    thread_exit ();
+    process_exit ();
   }
   else {
-    //list_push_front(&thread_current()->child_list, &t->child_elem);
     thread_current()->childLoaded = 1;
     sema_up(&thread_current()->exec_sema);
   }
@@ -114,21 +113,12 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   struct thread *parent = thread_current();
   struct thread *child;
- 
-  for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
-        e = list_next (e))
-    {
-      //ASSERT(0);
-      struct thread *t = list_entry (e, struct thread, child_elem);
-      if(t->tid == child_tid) {
-        child = t;
-        //e = list_end(&parent->child_list);
-        break;
-      }
-    }
-  
-  if(child == NULL) //|| child->status == THREAD_DYING) 
+
+  child = get_thread_from_tid(child_tid);
+
+  if(child == NULL) 
     return -1;
+
   else 
   {
     sema_down(&child->parent_wait);
@@ -150,8 +140,6 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
- 
-  printf("%s: exit(%d)\n", cur->name, cur->exit_status);
  
   struct list_elem *e;
   struct thread *child;

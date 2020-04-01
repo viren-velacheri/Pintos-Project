@@ -40,7 +40,7 @@ void exit(int status) {
   lock_acquire(&status_lock);
   thread_current()->exit_status = status;
   lock_release(&status_lock);
-  process_exit();
+  thread_exit();
 }
 
 static void
@@ -49,7 +49,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   char *temp_esp = f->esp;
   if(!valid_pointer(temp_esp))
   {
-    //pagedir_destroy (thread_current()->pagedir);
     exit(-1);
   }
   switch(*(int *)temp_esp) {
@@ -63,24 +62,18 @@ syscall_handler (struct intr_frame *f UNUSED)
         exit(-1);
       int status = *(int *) temp_esp;
       exit(status);
-      /*
-      thread_current()->exit_status = status;
-      //sema_down()
-      sema_up(thread_current()->proc_wait);
-      process_exit();
-      */
       break;
     
     case SYS_EXEC:
       temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(-1);
-      char * cmd_line = *(int *) temp_esp; //(get_argument(f->esp));
+      char * cmd_line = *(int *) temp_esp; 
       if(!valid_pointer(cmd_line))
         exit(-1);
       tid_t child_tid = process_execute(cmd_line);
       sema_down(&get_thread_from_tid(child_tid)->exec_sema);
-      if(!thread_current()->childLoaded)
+      if(!get_thread_from_tid(child_tid)->childLoaded) 
         child_tid = -1;
       f->eax = child_tid;
       break;
@@ -190,7 +183,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       if(!valid_pointer(temp_esp))
         exit(-1);
       int fd_write = *(int *) temp_esp;
-      //printf("%d\n", fd_write);
+
 
       temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))

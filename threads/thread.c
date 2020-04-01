@@ -214,7 +214,6 @@ struct thread* get_thread_from_tid(tid_t tid) {
         {
           struct thread *t = list_entry (e, struct thread, child_elem);
           if(t->tid == tid) {
-            //printf("found child\n");
             return t;
           }
         }
@@ -299,7 +298,7 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
-
+  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_status);
 #ifdef USERPROG
   process_exit ();
 #endif
