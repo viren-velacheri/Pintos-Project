@@ -104,6 +104,7 @@ struct thread
     int childLoaded;                    /* Did child load or not */
     struct file *set_of_files[MAX_FILES];     /* The set of files for process. */
     int curr_file_index;                /* The current file descriptor */
+    struct file* executable;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

@@ -54,6 +54,11 @@ void exit(int status) {
   lock_acquire(&status_lock);
   thread_current()->exit_status = status;
   lock_release(&status_lock);
+  
+  lock_acquire(&file_lock);
+  file_close(thread_current()->executable);
+  lock_release(&file_lock);
+
   thread_exit();
 }
 
@@ -100,7 +105,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       temp_esp += sizeof(int);
       if(!valid_pointer(temp_esp))
         exit(ERROR);
-      tid_t pid = *(int *) temp_esp; //(get_argument(f->esp));
+      tid_t pid = *(int *) temp_esp;
       f->eax = process_wait(pid);
       break;
     

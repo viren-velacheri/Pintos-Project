@@ -145,6 +145,16 @@ process_exit (void)
   struct thread *child;
   int i;
   
+  // for(i = 2; i < cur->curr_file_index; i++) {
+  //   file_close(cur->set_of_files[i]);
+  //   cur->set_of_files[i] = NULL;
+  // }
+
+  // if(cur->set_of_files[cur->curr_file_index] != NULL) {
+  //   file_allow_write(cur->set_of_files[cur->curr_file_index]);
+  //   file_close(cur->set_of_files[cur->curr_file_index]);
+  // }
+
   sema_up(&cur->parent_wait);
   sema_down(&cur->child_wait);
   for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
@@ -154,15 +164,7 @@ process_exit (void)
       sema_up(&child->child_wait);  
     }
   
-  for(i = 2; i < cur->curr_file_index; i++) {
-    file_close(cur->set_of_files[i]);
-    cur->set_of_files[i] = NULL;
-  }
-
-  if(cur->set_of_files[cur->curr_file_index] != NULL) {
-    //file_allow_write(cur->set_of_files[cur->curr_file_index]);
-    file_close(cur->set_of_files[cur->curr_file_index]);
-  }
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -304,6 +306,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", actualFileName);
       goto done; 
     }
+
+  t->executable = file;
+  file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -375,7 +380,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-  lock_release(&file_lock);
  
   /* Set up stack. */
   if (!setup_stack (esp, file_name))
@@ -387,15 +391,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
  
  done:
-  /* We arrive here whether the load is successful or not. */
-  //file_close (file);
-  if(success)
-  {
-    t->set_of_files[t->curr_file_index] = file;
-    file_deny_write(file);
-  } else {
-    file_close(file);
-  }
+  palloc_free_page(filename);
+  palloc_free_page(actualFileName);
+  lock_release(&file_lock);
   return success;
 }
 /* load() helpers. */
@@ -503,6 +501,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
+  
   return true;
 }
  
@@ -626,9 +625,9 @@ setup_stack (void **esp, const char* file_name)
   palloc_free_page(argv);
   palloc_free_page(temp_args);
   palloc_free_page(fn_copy);
+  //palloc_free_page(kpage);
  
   size_t size = PHYS_BASE - (int)myesp;
-  //hex_dump((int)myesp, myesp, size, 1);
   *esp = myesp;
  
   return success;
