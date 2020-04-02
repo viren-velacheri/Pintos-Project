@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -24,6 +26,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define MAX_FILES 128                   /* Maximum amount of files in process. */
 
 /* A kernel thread or user process.
 
@@ -92,15 +95,15 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-    struct list_elem child_elem;
-    struct list child_list;
-    struct semaphore child_wait;
-    struct semaphore parent_wait;
-    int exit_status;
-    struct semaphore exec_sema;
-    int childLoaded;
-    struct file *set_of_files[128];
-    int curr_file_index;
+    struct list_elem child_elem;        /* List element for children list. */
+    struct list child_list;             /* List of children for thread. */
+    struct semaphore child_wait;        /* Used for waiting on child threads. */
+    struct semaphore parent_wait;       /* Used for waiting on parent thread. */
+    int exit_status;                    /* Status of thread before exit. */
+    struct semaphore exec_sema;         /* Used to wait on child's executable */
+    int childLoaded;                    /* Did child load or not */
+    struct file *set_of_files[MAX_FILES];     /* The set of files for process. */
+    int curr_file_index;                /* The current file descriptor */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

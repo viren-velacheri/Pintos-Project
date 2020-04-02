@@ -160,7 +160,7 @@ process_exit (void)
   }
 
   if(cur->set_of_files[cur->curr_file_index] != NULL) {
-    file_allow_write(cur->set_of_files[cur->curr_file_index]);
+    //file_allow_write(cur->set_of_files[cur->curr_file_index]);
     file_close(cur->set_of_files[cur->curr_file_index]);
   }
   /* Destroy the current process's page directory and switch back
@@ -292,7 +292,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
   {
-    success=false;
     goto done;
   }
   process_activate ();
@@ -303,11 +302,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", actualFileName);
-      success=false;
       goto done; 
     }
-    t->set_of_files[t->curr_file_index] = file;
-    file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -393,6 +389,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   //file_close (file);
+  if(success)
+  {
+    t->set_of_files[t->curr_file_index] = file;
+    file_deny_write(file);
+  } else {
+    file_close(file);
+  }
   return success;
 }
 /* load() helpers. */
