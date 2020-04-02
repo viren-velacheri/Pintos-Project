@@ -38,12 +38,17 @@ process_execute (const char *file_name)
  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  fn_copy = palloc_get_page (PAL_ZERO);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
- 
-  fn_temp = palloc_get_page (0);
+
+  //Jordan driving now
+  
+  //make a temp of file_name to tokenize and save as fn
+  //to pass only the file name, not the command line,
+  //into thread_create
+  fn_temp = palloc_get_page (PAL_ZERO);
   if(fn_temp == NULL)
     return TID_ERROR;
   strlcpy(fn_temp, file_name, PGSIZE);
@@ -53,8 +58,12 @@ process_execute (const char *file_name)
   tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
   
   palloc_free_page(fn_temp);
+
+  //Jordan done driving
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+
   return tid;
 }
  
@@ -76,14 +85,21 @@ start_process (void *file_name_)
  
   /* If load failed, quit. */
   palloc_free_page (file_name);
+
+  //Viren driving now
+
+  //upon unsuccessful load, unblock child and exit
   if (!success) {
     sema_up(&thread_current()->exec_sema);
     process_exit ();
   }
+  //if successful set the childLoaded flag and unblock child
   else {
     thread_current()->childLoaded = 1;
     sema_up(&thread_current()->exec_sema);
   }
+
+  //Viren done driving
  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -107,10 +123,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // while(1){}
-  // return -1;
-  
-  struct list_elem *e;
+  //Brock driving now
+
   struct thread *parent = thread_current();
   struct thread *child;
 
@@ -121,42 +135,44 @@ process_wait (tid_t child_tid UNUSED)
 
   else 
   {
+    //block parent until child exits
     sema_down(&child->parent_wait);
- 
+
+    //get child's exit status after unblocks
     lock_acquire(&status_lock);
     int status = child->exit_status;
     lock_release(&status_lock);
  
+    //remove child from child list and unblock child waiting on
+    //this thread(parent) to call wait
     list_remove(&child->child_elem);
     sema_up(&child->child_wait);
  
     return status;
   }
+
+  //Brock done driving
 }
  
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
+  //Jasper driving now
+
   struct thread *cur = thread_current ();
   uint32_t *pd;
  
   struct list_elem *e;
   struct thread *child;
   int i;
-  
-  // for(i = 2; i < cur->curr_file_index; i++) {
-  //   file_close(cur->set_of_files[i]);
-  //   cur->set_of_files[i] = NULL;
-  // }
 
-  // if(cur->set_of_files[cur->curr_file_index] != NULL) {
-  //   file_allow_write(cur->set_of_files[cur->curr_file_index]);
-  //   file_close(cur->set_of_files[cur->curr_file_index]);
-  // }
-
+  //unblock parent waiting for this thread(child) to call exit
   sema_up(&cur->parent_wait);
+  //block child until parent calls wait or exit
   sema_down(&cur->child_wait);
+  //loop through children and unblock them if waiting on this thread
+  //(parent) to call wait or exit
   for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
         e = list_next (e))
     {
@@ -164,6 +180,7 @@ process_exit (void)
       sema_up(&child->child_wait);  
     }
   
+  //Jasper done driving
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -280,6 +297,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+
+  //Jordan driving now
  
   char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
   memcpy(filename, file_name, strlen(file_name) + 1);
@@ -289,7 +308,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
  
   memcpy(actualFileName, token, strlen(token) + 1);
  
- 
+  //Jordan done driving
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -297,7 +317,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   }
   process_activate ();
- 
+  
+  //Brock driving now
+
   lock_acquire(&file_lock);
   /* Open executable file. */
   file = filesys_open (actualFileName);
@@ -306,7 +328,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", actualFileName);
       goto done; 
     }
-
+  //set and deny writes to this executable file
   t->executable = file;
   file_deny_write(file);
   /* Read and verify executable header. */
@@ -395,6 +417,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   palloc_free_page(actualFileName);
   lock_release(&file_lock);
   return success;
+
+  //Brock done driving
 }
 /* load() helpers. */
  
@@ -518,118 +542,133 @@ setup_stack (void **esp, const char* file_name)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      /*decrement the stack pointer and add elements(arguments) to the 
+      stack according to calling convention while checking that the stack 
+      pointer doesn't exceed its allowed size after each element is added */
+      if (success) {
+
+        //Viren driving now
+
         *esp = PHYS_BASE;
+        char* myesp = (char *)*esp;
+ 
+        char** temp_args = palloc_get_page(PAL_USER | PAL_ZERO);
+        char* fn_copy = palloc_get_page(PAL_USER | PAL_ZERO);
+        memcpy(fn_copy, file_name, strlen(file_name));
+        int byte_size = 0;
+      
+        char *token, save_ptr;
+        int argc = 0;
+        for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
+              token = strtok_r (NULL, " ", &save_ptr))
+        {
+          temp_args[argc] = token;
+          argc++; 
+        }
+      
+        int stack_size = 4096;
+
+        //Viren done driving
+        //Jasper driving now
+
+        char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
+        int j = argc - 1;
+        while(j >= 0) {
+          myesp -= (strlen(temp_args[j]) + 1);
+          if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+          }
+          byte_size += (strlen(temp_args[j]) + 1);
+          memcpy(myesp, temp_args[j], strlen(temp_args[j]) + 1);
+          argv[j] = myesp;
+          j--;
+        }
+        
+        argv[argc] = 0;
+        j = 4 - (byte_size % 4);
+        if(j) {
+          myesp -= j;
+          if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+          }
+      
+          memcpy(myesp, &argv[argc], j);
+        }
+
+        //Jasper done driving
+        //Jordan driving now
+      
+        int k = argc;
+        while(k >= 0) {
+          myesp -= sizeof(char*);
+          if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+          }
+      
+          memcpy(myesp, &argv[k], sizeof(char*));
+          k--;
+        }
+      
+        token = myesp;
+      
+        myesp -= sizeof(char **);
+        if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+        }
+      
+        memcpy(myesp, &token, sizeof(char **));
+        myesp -= sizeof(int);
+        if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+        }
+        
+        //Jordan done driving
+        //Brock driving now
+      
+        memcpy(myesp, &argc, sizeof(int));
+        myesp -= sizeof(void*);
+        if((int)myesp < PHYS_BASE - stack_size) {
+            palloc_free_page(argv);
+            palloc_free_page(temp_args);
+            palloc_free_page(fn_copy);
+            palloc_free_page(kpage);
+            return false;
+        }
+      
+        memcpy(myesp, &argv[argc], sizeof(void *));
+      
+        palloc_free_page(argv);
+        palloc_free_page(temp_args);
+        palloc_free_page(fn_copy);
+      
+        *esp = myesp;
+
+        //Brock done driving
+        }
       else
         palloc_free_page (kpage);
-    }
- 
-  char* myesp = (char *)*esp;
- 
-  char** temp_args = palloc_get_page(PAL_USER | PAL_ZERO);
-  char* fn_copy = palloc_get_page(PAL_USER | PAL_ZERO);
-  memcpy(fn_copy, file_name, strlen(file_name));
-  int byte_size = 0;
- 
-  char *token, *save_ptr;
-  int argc = 0;
-  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
-        token = strtok_r (NULL, " ", &save_ptr))
-  {
-    temp_args[argc] = token;
-    argc++; 
-  }
- 
-  int stack_size = 4096;
- 
-  char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
-  int j = argc - 1;
-  while(j >= 0) {
-    myesp -= (strlen(temp_args[j]) + 1);
-    if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-    }
-    byte_size += (strlen(temp_args[j]) + 1);
-    memcpy(myesp, temp_args[j], strlen(temp_args[j]) + 1);
-    argv[j] = myesp;
-    j--;
-  }
+      }
   
-  argv[argc] = 0;
-  j = 4 - (byte_size % 4);
-  if(j) {
-    myesp -= j;
-    if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-    }
- 
-    memcpy(myesp, &argv[argc], j);
-  }
- 
-  int k = argc;
-  while(k >= 0) {
-    myesp -= sizeof(char*);
-    if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-    }
- 
-    memcpy(myesp, &argv[k], sizeof(char*));
-    k--;
-  }
- 
-  token = myesp;
- 
-  myesp -= sizeof(char **);
-  if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-  }
- 
-  memcpy(myesp, &token, sizeof(char **));
-  myesp -= sizeof(int);
-  if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-  }
- 
-  memcpy(myesp, &argc, sizeof(int));
-  myesp -= sizeof(void*);
-  if((int)myesp < PHYS_BASE - stack_size) {
-      palloc_free_page(argv);
-      palloc_free_page(temp_args);
-      palloc_free_page(fn_copy);
-      palloc_free_page(kpage);
-      return false;
-  }
- 
-  memcpy(myesp, &argv[argc], sizeof(void *));
- 
-  palloc_free_page(argv);
-  palloc_free_page(temp_args);
-  palloc_free_page(fn_copy);
-  //palloc_free_page(kpage);
- 
-  size_t size = PHYS_BASE - (int)myesp;
-  *esp = myesp;
- 
   return success;
  
 }

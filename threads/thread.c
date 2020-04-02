@@ -200,6 +200,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  //add t to the calling thread's child list
   list_push_front(&thread_current()->child_list, &t->child_elem);
 
   /* Add to run queue. */
@@ -208,6 +209,11 @@ thread_create (const char *name, int priority,
   return tid;
 }
 
+//Jasper driving now
+
+/*This method is to return the struct thread of the child
+  corresponding to tid from the calling thread's child list
+  or returns null if no child is found*/
 struct thread* get_thread_from_tid(tid_t tid) {
   struct list_elem *e;
   struct thread *cur = thread_current();
@@ -216,11 +222,13 @@ struct thread* get_thread_from_tid(tid_t tid) {
         {
           struct thread *t = list_entry (e, struct thread, child_elem);
           if(t->tid == tid) {
-            return t;
+            return t; //return child
           }
         }
         return NULL;
 }
+
+//Jasper done driving
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -300,7 +308,10 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
+
+  //print exit message for thread exiting
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_status);
+
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -493,9 +504,6 @@ init_thread (struct thread *t, const char *name, int priority)
 
 
   old_level = intr_disable();
-  //add t to calling thread's child list
-  //list_push_front(&thread_current()->child_list, &t->child_elem);
-
   list_push_back (&all_list, &t->allelem);
   intr_set_level(old_level);
 }
