@@ -167,6 +167,9 @@ process_exit (void)
   struct thread *child;
   int i;
 
+  for(i = 0; i < 128; i++) {
+    file_close(cur->set_of_files[i]);
+  }
   //unblock parent waiting for this thread(child) to call exit
   sema_up(&cur->parent_wait);
   //block child until parent calls wait or exit
@@ -181,6 +184,11 @@ process_exit (void)
     }
   
   //Jasper done driving
+
+  // for(i = 0; i < 128; i++) {
+  //   file_close(cur->set_of_files[i]);
+  //   //curr->set_of_files[i] = NULL;
+  // }
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

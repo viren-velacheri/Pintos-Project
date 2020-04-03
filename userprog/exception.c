@@ -149,6 +149,9 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  // These are the checks done for the bad
+  // read, write and jump tests. Simple checks
+  // do these things.
   if(!valid_pointer(fault_addr))
   {
      exit(-1);

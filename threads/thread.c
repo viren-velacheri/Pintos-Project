@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "userprog/syscall.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -311,7 +312,6 @@ thread_exit (void)
 
   //print exit message for thread exiting
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_status);
-
 #ifdef USERPROG
   process_exit ();
 #endif
