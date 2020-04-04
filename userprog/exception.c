@@ -149,25 +149,11 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  // These are the checks done for the bad
-  // read, write and jump tests. Simple checks
-  // do these things.
-  if(!valid_pointer(fault_addr))
-  {
-     exit(-1);
-  }
-  if(!write) 
-  {
-     exit(-1);
-  }
-  if(!not_present)
-  {
-     exit(-1);
-  }
-  if(fault_addr == NULL)
-  {
-     exit(-1);
-  }
+  // Viren Drove here
+  // Do valid pointer check on fault address so that we exit
+  // with status of -1 when executing/reading/writing to either an address 
+  // that is not mapped or a kernel virtual address.
+  valid_pointer_check(fault_addr);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

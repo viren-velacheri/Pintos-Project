@@ -26,7 +26,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define MAX_FILES 128                   /* Maximum amount of files in process. */
+#define MAX_FILES 128                   /* Max # of open files in process. */
 
 /* A kernel thread or user process.
 
@@ -100,11 +100,11 @@ struct thread
     struct semaphore child_wait;        /* Used for waiting on child threads. */
     struct semaphore parent_wait;       /* Used for waiting on parent thread. */
     int exit_status;                    /* Status of thread before exit. */
-    struct semaphore exec_sema;         /* Used to wait on child's executable */
+    struct semaphore exec_sema;        /* Used to wait on child's executable */
     int childLoaded;                    /* Did child load or not */
-    struct file *set_of_files[MAX_FILES];     /* The set of files for process. */
+    struct file *set_of_files[MAX_FILES];  /* The set of files for process. */
     int curr_file_index;                /* The current file descriptor */
-    struct file* executable;
+    struct file* executable;            /* The executable file */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -137,6 +137,8 @@ void thread_block (void);
 void thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
+/* A helper method that gets corresponding thread with given tid */
+struct thread* get_thread_from_tid(tid_t tid);
 tid_t thread_tid (void);
 const char *thread_name (void);
 

@@ -22,7 +22,9 @@
  
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
- 
+
+#define STACK_SIZE 4096  // The size of stack.
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -89,12 +91,14 @@ start_process (void *file_name_)
   //Viren driving now
 
   //upon unsuccessful load, unblock child and exit
-  if (!success) {
+  if (!success) 
+  {
     sema_up(&thread_current()->exec_sema);
     process_exit ();
   }
   //if successful set the childLoaded flag and unblock child
-  else {
+  else 
+  {
     thread_current()->childLoaded = 1;
     sema_up(&thread_current()->exec_sema);
   }
@@ -167,7 +171,13 @@ process_exit (void)
   struct thread *child;
   int i;
 
-  for(i = 0; i < 128; i++) {
+  // Goes through all files opened and closes them.
+  // Since just closing all files opened in process,
+  // only go up to the current file index and don't
+  // have to waste time going through the max number
+  // of files (128) when we don't have to.
+  for(i = 0; i < cur->curr_file_index; i++) 
+  {
     file_close(cur->set_of_files[i]);
   }
   //unblock parent waiting for this thread(child) to call exit
@@ -184,11 +194,6 @@ process_exit (void)
     }
   
   //Jasper done driving
-
-  // for(i = 0; i < 128; i++) {
-  //   file_close(cur->set_of_files[i]);
-  //   //curr->set_of_files[i] = NULL;
-  // }
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -536,6 +541,29 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   
   return true;
 }
+
+// Jordan drove here
+/* A helper method that checks whether stack pointer is valid or not.
+Returns 0 if not and frees the pages, 1 if it is. Parameters are the 
+temporary stack pointer, actual args, temporary arguments, 
+and the kpage or zeroed page. */
+int valid_stack_pointer(char* myesp, char** argv, char** temp_args, 
+char* fn_copy, uint8_t kpage)
+{
+  // A simple check to see whether stack pointer is valid
+  // or not.
+  if((int)myesp < PHYS_BASE - STACK_SIZE) 
+  {
+    palloc_free_page(argv);
+    palloc_free_page(temp_args);
+    palloc_free_page(fn_copy);
+    palloc_free_page(kpage);
+    return 0;
+  }
+  return 1;
+}
+
+//Jordan done driving
  
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
@@ -553,7 +581,8 @@ setup_stack (void **esp, const char* file_name)
       /*decrement the stack pointer and add elements(arguments) to the 
       stack according to calling convention while checking that the stack 
       pointer doesn't exceed its allowed size after each element is added */
-      if (success) {
+      if (success) 
+      {
 
         //Viren driving now
 
@@ -573,21 +602,17 @@ setup_stack (void **esp, const char* file_name)
           temp_args[argc] = token;
           argc++; 
         }
-      
-        int stack_size = 4096;
 
         //Viren done driving
         //Jasper driving now
 
         char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
         int j = argc - 1;
-        while(j >= 0) {
+        while(j >= 0) 
+        {
           myesp -= (strlen(temp_args[j]) + 1);
-          if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          {
             return false;
           }
           byte_size += (strlen(temp_args[j]) + 1);
@@ -598,13 +623,11 @@ setup_stack (void **esp, const char* file_name)
         
         argv[argc] = 0;
         j = 4 - (byte_size % 4);
-        if(j) {
+        if(j) 
+        {
           myesp -= j;
-          if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          {
             return false;
           }
       
@@ -615,13 +638,11 @@ setup_stack (void **esp, const char* file_name)
         //Jordan driving now
       
         int k = argc;
-        while(k >= 0) {
+        while(k >= 0) 
+        {
           myesp -= sizeof(char*);
-          if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          {
             return false;
           }
       
@@ -632,21 +653,15 @@ setup_stack (void **esp, const char* file_name)
         token = myesp;
       
         myesp -= sizeof(char **);
-        if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        {
             return false;
         }
       
         memcpy(myesp, &token, sizeof(char **));
         myesp -= sizeof(int);
-        if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        {
             return false;
         }
         
@@ -655,11 +670,8 @@ setup_stack (void **esp, const char* file_name)
       
         memcpy(myesp, &argc, sizeof(int));
         myesp -= sizeof(void*);
-        if((int)myesp < PHYS_BASE - stack_size) {
-            palloc_free_page(argv);
-            palloc_free_page(temp_args);
-            palloc_free_page(fn_copy);
-            palloc_free_page(kpage);
+        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        {
             return false;
         }
       

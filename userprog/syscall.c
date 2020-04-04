@@ -10,25 +10,42 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 
-#define ERROR -1 /* Indicates process exited or didn't load due to an error */
+#define ERROR -1  /* Used when a pointer or file is invalid */
+#define STDIN 0   /* Standard Input File Descriptor */
+#define STDOUT 1  /* Standard Output File Descriptor */
+#define STDERR 2  /* Standard Error File Descriptor */
+
 static void syscall_handler (struct intr_frame *);
 
 //Viren driving now
 
 /* This method is used for determining whether 
 the given address/pointer is valid or not. 
-Returns 0 if not and 1 if it is. */
-int valid_pointer(void * ptr) {
+Exits with -1 status if not valid. */
+void valid_pointer_check(void * ptr) 
+{
   // If the pointer is null or it is a kernel and not user address 
-  // or if user address is unmapped, 0 (false)
-  // is returned. Otherwise, 1 (true) is returned.
+  // or if address is unmapped, exit with -1 error status.
+  // Otherwise, nothing happens.
   if(ptr == NULL || is_kernel_vaddr (ptr) || 
   thread_current()->pagedir == NULL || 
   pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
     {
-      return 0;
+      exit(ERROR);
     }
-    return 1;
+}
+
+/* This is a helper method used for checking if given fd is between 
+curr_file_index and the least possible fd value it could be (0 or 2).
+if it isn't, exit with -1 status. Parameters are t or the current 
+thread, the given fd, and the low_limit (either 0 or 2). */
+void file_exist_check(struct thread *t, int fd, int low_limit)
+{
+  // A simple check to see if file exists or not based on given fd.
+  if(fd < low_limit || fd >= t->curr_file_index) 
+  {
+    exit(ERROR);
+  }
 }
 
 //Viren done driving
@@ -50,7 +67,8 @@ that is used for when a thread
 exits and to retrieve its status
 before doing so. Status lock is used
 to ensure that this is done atomically. */
-void exit(int status) {
+void exit(int status) 
+{
   //set exit status atomically
   lock_acquire(&status_lock);
   thread_current()->exit_status = status;
@@ -76,37 +94,37 @@ syscall_handler (struct intr_frame *f UNUSED)
   // A temporary stack pointer so actual
   // stack pointer isn't modified directly.
   char *temp_esp = f->esp;
-  if(!valid_pointer(temp_esp))
+  valid_pointer_check(temp_esp);
+
+  int sys_call_num = *(int *)temp_esp;
+  switch(sys_call_num) 
   {
-    exit(ERROR);
-  }
 
-  switch(*(int *)temp_esp) {
-
+    // System call where Pintos is terminated.
     case SYS_HALT:
       shutdown_power_off();
       break;
 
     //Jordan done driving
     //Brock driving now
-    
+    // System call that terminates current user program, returning 
+    // its exit status to the kernel. Usually 0 if successful
+    // and -1 or some other nonzero value if not.
     case SYS_EXIT:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
-      
+      valid_pointer_check(temp_esp);
       int status = *(int *) temp_esp;
       exit(status);
       break;
     
+    // System call that runs the executable based off name
+    // given in the cmd_line argument. Process's pid is 
+    // returned or -1 if can't load or run.
     case SYS_EXEC:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       char * cmd_line = *(int *) temp_esp; 
-      if(!valid_pointer(cmd_line))
-        exit(ERROR);
-      
+      valid_pointer_check(cmd_line);
       tid_t child_tid = process_execute(cmd_line);
       //block the child's exec semaphore until after 
       //the process has been loaded
@@ -119,26 +137,27 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     //Brock done driving
     //Viren driving now
-    
+    // System call where process waits for a child process pid 
+    // and retrieve's its exit status. -1 returned if process_wait
+    // fails.
     case SYS_WAIT:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       tid_t pid = *(int *) temp_esp;
-      
       f->eax = process_wait(pid);
       break;
     
+    // System call where a new file is created with a certain 
+    // initial size. True if successful, false if not. 
+    // Since creating a file does not open it, we don't store
+    // it in our array of files opened.
     case SYS_CREATE:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       char * file = *(int *) temp_esp;
-      if(!valid_pointer(file))
-        exit(ERROR);
+      valid_pointer_check(file);
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       uint32_t initial_size = *(int *) temp_esp;
       
       //use synchronization with the file lock when
@@ -150,39 +169,43 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     //Viren done driving
     //Jasper driving now
-    
+    // System call that deletes the given file. True if successful,
+    // false if not. Since a file can be removed regardless of whether
+    // it is open or not, we don't modify our array of files opened.
     case SYS_REMOVE:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
-      char * file2 = *(int *) temp_esp;
-      if(!valid_pointer(file2))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
+      char * file_to_remove = *(int *) temp_esp;
+      valid_pointer_check(file_to_remove);
       
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = filesys_remove(file2);
+      f->eax = filesys_remove(file_to_remove);
       lock_release(&file_lock);
       break;
     
+    // System call opens a file. The file descriptor or index in the array
+    // of open files that it was added in is returned or -1 if file
+    // could not be opened or was NULL.
     case SYS_OPEN:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
-      char * file3 = *(int *)temp_esp;
-      if(!valid_pointer(file3))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
+      char * file_to_open = *(int *)temp_esp;
+      valid_pointer_check(file_to_open);
       
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      struct file *open_file = filesys_open(file3);
+      struct file *open_file = filesys_open(file_to_open);
       lock_release(&file_lock);
       
-      if(open_file == NULL) {
+      if(open_file == NULL) 
+      {
         f->eax = ERROR;
-      } else {
+      } 
+      else 
+      {
         struct thread *t = thread_current();
         //add this file to thread's array of open files
         t->set_of_files[t->curr_file_index] = open_file;
@@ -193,163 +216,153 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     //Jasper done driving
     //Jordan driving now
-    
+    // System call that returns the size of the open file. Do a check
+    // to see if file would exist at given fd. If not, exit with error
+    // status. Otherwise, get file at spot file descriptor indexes into
+    // and get the size.
     case SYS_FILESIZE:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd = *(int *) temp_esp;
       struct thread *t_size = thread_current();
       //exit with error if paramater fd is not a valid file
-      if(fd < 2 || fd > t_size->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index = t_size->set_of_files[fd];
+      file_exist_check(t_size, fd, STDERR);
+      struct file *file_at_fd = t_size->set_of_files[fd];
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = file_length(file_at_index);
+      f->eax = file_length(file_at_fd);
       lock_release(&file_lock);
       break;
     
+    // System call that reads a certain number of bytes of open file
+    // into buffer. Returns number of bytes read or -1 if file could not
+    // be read besides it being at the end of file.
     case SYS_READ:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd_read = *(int *) temp_esp;
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       void *buffer = *(int *) temp_esp;
-      if(!valid_pointer(buffer))
-        exit(ERROR);
+      valid_pointer_check(buffer);
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       unsigned size = *(int *)temp_esp;
       
       struct thread *t_read = thread_current();
       //case where fd is 0 and we are reading from user
-      if(fd_read == 0) {
+      if(fd_read == STDIN) 
+      {
         f->eax = input_getc();
         break;
       }
       //exit with error if paramater fd is not a valid file
-      if(fd_read < 2 || fd_read > t_read->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index2 = t_read->set_of_files[fd_read];
+      file_exist_check(t_read, fd_read, STDERR);
+      struct file *file_to_read = t_read->set_of_files[fd_read];
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = file_read(file_at_index2, buffer, size);
+      f->eax = file_read(file_to_read, buffer, size);
       lock_release(&file_lock);
       break;
 
     //Jordan done driving
     //Brock driving now
-    
+    // System call that writes a certain amount of bytes from buffer
+    // to the open file designated by file descriptor. Returns number
+    // of bytes written or 0 if none could be written.
     case SYS_WRITE:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd_write = *(int *) temp_esp;
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       const void *buffer_write = *(int *) temp_esp;
-      if(!valid_pointer(buffer_write))
-        exit(ERROR);
+      valid_pointer_check(buffer_write);
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       unsigned size_write = *(int *)temp_esp;
 
       struct thread *t_write = thread_current();
-      if(fd_write < 0 || fd_write > t_write->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index3 = t_write->set_of_files[fd_write];
+      file_exist_check(t_write, fd_write, STDIN);
+      struct file *file_to_write = t_write->set_of_files[fd_write];
       
       //when fd is 1 write to the console using putbuf
-      if(fd_write == 1) {
+      if(fd_write == STDOUT) 
+      {
         lock_acquire(&write_lock);
         putbuf((char *)buffer_write, size_write);
         f->eax = size_write;
         lock_release(&write_lock);
       }
       //other cases when writing to a file
-      else if(fd_write > 1) {
+      else if(fd_write > STDOUT) 
+      {
         //use synchronization with the file lock when
         //accessing the file system
         lock_acquire(&file_lock);
-        f->eax = file_write(file_at_index3, buffer_write, size_write);
+        f->eax = file_write(file_to_write, buffer_write, size_write);
         lock_release(&file_lock);
       }
       break;
     
+    // System call the changes the next byte to be read or written 
+    // in open file designated by given file descriptor, relative to 
+    // bytes from beginning of file.
     case SYS_SEEK:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd_seek = *(int *) temp_esp;
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       unsigned position = *(int *)temp_esp;
       
       struct thread *t_seek = thread_current();
-      if(fd_seek < 2 || fd_seek > t_seek->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index4 = t_seek->set_of_files[fd_seek];
+      file_exist_check(t_seek, fd_seek, STDERR);
+      struct file *file_to_seek = t_seek->set_of_files[fd_seek];
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      file_seek(file_at_index4, position);
+      file_seek(file_to_seek, position);
       lock_release(&file_lock);
       break;
 
     //Brock done driving
     //Viren driving now
-    
+    // System call returns position of next byte to be read or written
+    // in open file designated by given file descriptor, relative to bytes
+    // from beginning of file.
     case SYS_TELL:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd_tell = *(int *) temp_esp;
       
       struct thread *t_tell = thread_current();
-      if(fd_tell < 2 || fd_tell > t_tell->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index5 = t_tell->set_of_files[fd_tell];
+      file_exist_check(t_tell, fd_tell, STDERR);
+      struct file *file_to_tell = t_tell->set_of_files[fd_tell];
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = file_tell(file_at_index5);
+      f->eax = file_tell(file_to_tell);
       lock_release(&file_lock);
       break;
 
+    // System call closes the open file with given file descriptor.
     case SYS_CLOSE:
       temp_esp += sizeof(int);
-      if(!valid_pointer(temp_esp))
-        exit(ERROR);
+      valid_pointer_check(temp_esp);
       int fd_close = *(int *) temp_esp;
       
       struct thread *t_close = thread_current();
-      if(fd_close < 2 || fd_close > t_close->curr_file_index) {
-        exit(ERROR);
-      }
-      struct file *file_at_index6 = t_close->set_of_files[fd_close];
+      file_exist_check(t_close, fd_close, STDERR);
+      struct file *file_to_close = t_close->set_of_files[fd_close];
       //null out file to be closed
       t_close->set_of_files[fd_close] = NULL;
-      if(file_at_index6 == NULL)
-        exit(ERROR);
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      file_close(file_at_index6);
+      file_close(file_to_close);
       lock_release(&file_lock);
       break;
   }

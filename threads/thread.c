@@ -23,6 +23,9 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* The maximum number of files opened a process can have */
+#define MAX_FILES 128 
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -212,17 +215,19 @@ thread_create (const char *name, int priority,
 
 //Jasper driving now
 
-/*This method is to return the struct thread of the child
+/* This method is to return the struct thread of the child
   corresponding to tid from the calling thread's child list
-  or returns null if no child is found*/
-struct thread* get_thread_from_tid(tid_t tid) {
+  or returns null if no child is found */
+struct thread* get_thread_from_tid(tid_t tid) 
+{
   struct list_elem *e;
   struct thread *cur = thread_current();
   for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
            e = list_next (e))
         {
           struct thread *t = list_entry (e, struct thread, child_elem);
-          if(t->tid == tid) {
+          if(t->tid == tid) 
+          {
             return t; //return child
           }
         }
@@ -311,7 +316,8 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
   //print exit message for thread exiting
-  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_status);
+  printf("%s: exit(%d)\n", thread_current()->name, 
+  thread_current()->exit_status);
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -476,6 +482,19 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
+/* A simple method for initializing the files in a new process
+to NULL. Simply takes in the set of files as a parameter. */
+void files_init(struct file *set_of_files[MAX_FILES]) 
+{
+  // A simple for loop that initializes file pointers to NULL
+  // at start.
+  unsigned i;
+  for(i = 0; i < MAX_FILES; i++)
+  {
+    set_of_files[i] = NULL;
+  }
+}
+
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
@@ -493,13 +512,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
 
+  /* Where we initialize our semas for synchronization. */
   sema_init(&t->child_wait, 0);
   sema_init(&t->parent_wait, 0);
   sema_init(&t->exec_sema, 0);
   t->magic = THREAD_MAGIC;
-  t->exit_status = 0;
+  t->exit_status = 0; // exit status set to default of 0.
+  // starts at 2 since 0 and 1 fds are reserved for console.
   t->curr_file_index = 2;
-  list_init(&t->child_list);
+  files_init(t->set_of_files); // array of files initialized
+  list_init(&t->child_list);  // child list initialized.
 
 
 
