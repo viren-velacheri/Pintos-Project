@@ -28,7 +28,6 @@ void valid_pointer_check(void * ptr)
   // or if address is unmapped, exit with -1 error status.
   // Otherwise, nothing happens.
   if(ptr == NULL || is_kernel_vaddr (ptr) || 
-  thread_current()->pagedir == NULL || 
   pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
     {
       exit(ERROR);
@@ -39,10 +38,21 @@ void valid_pointer_check(void * ptr)
 curr_file_index and the least possible fd value it could be (0 or 2).
 if it isn't, exit with -1 status. Parameters are t or the current 
 thread, the given fd, and the low_limit (either 0 or 2). */
-void file_exist_check(struct thread *t, int fd, int low_limit)
+void fd_exist_check(struct thread *t, int fd, int low_limit)
 {
   // A simple check to see if file exists or not based on given fd.
   if(fd < low_limit || fd >= t->curr_file_index) 
+  {
+    exit(ERROR);
+  }
+}
+
+/* Used to check if file exists or not. Used in case where 
+fd is valid but file was closed earlier. Only parameter is the respective
+file to check. If it is NULL, exit with -1 error status. */
+void file_exist_check(struct file *f) 
+{
+  if(f == NULL)
   {
     exit(ERROR);
   }
@@ -226,8 +236,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd = *(int *) temp_esp;
       struct thread *t_size = thread_current();
       //exit with error if paramater fd is not a valid file
-      file_exist_check(t_size, fd, STDERR);
+      fd_exist_check(t_size, fd, STDERR);
       struct file *file_at_fd = t_size->set_of_files[fd];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_at_fd);
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
@@ -258,8 +272,12 @@ syscall_handler (struct intr_frame *f UNUSED)
         break;
       }
       //exit with error if paramater fd is not a valid file
-      file_exist_check(t_read, fd_read, STDERR);
+      fd_exist_check(t_read, fd_read, STDERR);
       struct file *file_to_read = t_read->set_of_files[fd_read];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_read);
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
@@ -285,7 +303,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       unsigned size_write = *(int *)temp_esp;
 
       struct thread *t_write = thread_current();
-      file_exist_check(t_write, fd_write, STDIN);
+      fd_exist_check(t_write, fd_write, STDIN);
       struct file *file_to_write = t_write->set_of_files[fd_write];
       
       //when fd is 1 write to the console using putbuf
@@ -299,6 +317,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       //other cases when writing to a file
       else if(fd_write > STDOUT) 
       {
+        // Additional check done in case a file with valid fd
+        // was closed earlier, so exit with -1 error status
+        // when such a thing happens.
+        file_exist_check(file_to_write);
         //use synchronization with the file lock when
         //accessing the file system
         lock_acquire(&file_lock);
@@ -307,7 +329,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     
-    // System call the changes the next byte to be read or written 
+    // System call that changes the next byte to be read or written 
     // in open file designated by given file descriptor, relative to 
     // bytes from beginning of file.
     case SYS_SEEK:
@@ -319,8 +341,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       unsigned position = *(int *)temp_esp;
       
       struct thread *t_seek = thread_current();
-      file_exist_check(t_seek, fd_seek, STDERR);
+      fd_exist_check(t_seek, fd_seek, STDERR);
       struct file *file_to_seek = t_seek->set_of_files[fd_seek];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_seek);
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
@@ -339,8 +365,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd_tell = *(int *) temp_esp;
       
       struct thread *t_tell = thread_current();
-      file_exist_check(t_tell, fd_tell, STDERR);
+      fd_exist_check(t_tell, fd_tell, STDERR);
       struct file *file_to_tell = t_tell->set_of_files[fd_tell];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_tell);
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
@@ -355,10 +385,22 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd_close = *(int *) temp_esp;
       
       struct thread *t_close = thread_current();
-      file_exist_check(t_close, fd_close, STDERR);
+      fd_exist_check(t_close, fd_close, STDERR);
       struct file *file_to_close = t_close->set_of_files[fd_close];
       //null out file to be closed
       t_close->set_of_files[fd_close] = NULL;
+      // Adjusts the current file descriptor index in the case that 
+      // the latest open file (curr_file_index - 1) was the one closed.
+      // If so, loop through and go down through a potential row of 
+      // consecutive closed files until standard error or 2.
+      if(fd_close == t_close->curr_file_index - 1) 
+      {
+        while(t_close->curr_file_index > STDERR && 
+        t_close->set_of_files[t_close->curr_file_index - 1] == NULL)
+        {
+          t_close->curr_file_index--;
+        }
+      }
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);

@@ -151,9 +151,12 @@ page_fault (struct intr_frame *f)
 
   // Viren Drove here
   // Do valid pointer check on fault address so that we exit
-  // with status of -1 when executing/reading/writing to either an address 
-  // that is not mapped or a kernel virtual address.
-  valid_pointer_check(fault_addr);
+  // with status of -1 when executing/reading/writing to an unmapped
+  // user virtual address.
+  if(user)
+  {
+     valid_pointer_check(fault_addr);
+  }
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
