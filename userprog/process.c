@@ -143,9 +143,7 @@ process_wait (tid_t child_tid UNUSED)
     sema_down(&child->parent_wait);
 
     //get child's exit status after unblocks
-    lock_acquire(&status_lock);
     int status = child->exit_status;
-    lock_release(&status_lock);
  
     //remove child from child list and unblock child waiting on
     //this thread(parent) to call wait
@@ -314,9 +312,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //Jordan driving now
  
   char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
+  if(filename == NULL)
+  {
+    return false;
+  }
   memcpy(filename, file_name, strlen(file_name) + 1);
   char *token, *save_ptr;
   char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);
+  if(actualFileName == NULL)
+  {
+    return false;
+  }
   token = strtok_r(filename, " ", &save_ptr);
  
   memcpy(actualFileName, token, strlen(token) + 1);
@@ -590,7 +596,15 @@ setup_stack (void **esp, const char* file_name)
         char* myesp = (char *)*esp;
  
         char** temp_args = palloc_get_page(PAL_USER | PAL_ZERO);
+        if(temp_args == NULL)
+        {
+          return false;
+        }
         char* fn_copy = palloc_get_page(PAL_USER | PAL_ZERO);
+        if(fn_copy == NULL)
+        {
+          return false;
+        }
         memcpy(fn_copy, file_name, strlen(file_name));
         int byte_size = 0;
       
@@ -607,6 +621,10 @@ setup_stack (void **esp, const char* file_name)
         //Jasper driving now
 
         char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
+        if(argv == NULL)
+        {
+          return false;
+        }
         int j = argc - 1;
         while(j >= 0) 
         {

@@ -67,7 +67,6 @@ syscall_init (void)
   // This is where we initialize our locks.
   lock_init(&file_lock);
   lock_init(&write_lock);
-  lock_init(&status_lock);
 }
 
 //Jasper driving now
@@ -79,10 +78,7 @@ before doing so. Status lock is used
 to ensure that this is done atomically. */
 void exit(int status) 
 {
-  //set exit status atomically
-  lock_acquire(&status_lock);
   thread_current()->exit_status = status;
-  lock_release(&status_lock);
   
   //close this thread's executable (allows writes)
   lock_acquire(&file_lock);
