@@ -19,7 +19,9 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 #include "threads/synch.h"
- 
+#include "vm/frame.h"
+
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -727,8 +729,9 @@ install_page (void *upage, void *kpage, bool writable)
  
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+     return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
+  // return (pagedir_get_page (t->pagedir, upage) == NULL
+  //         && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
  
 
