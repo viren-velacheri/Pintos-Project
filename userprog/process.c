@@ -192,7 +192,20 @@ process_exit (void)
       child = list_entry (e, struct thread, child_elem);
       sema_up(&child->child_wait);  
     }
-  
+
+    // These two checks are done so that if this current process or thread
+    // is holding the file lock and/or the write lock, it will release those
+    // so that it isn't holding onto them even when it is dead.
+    if(lock_held_by_current_thread(&file_lock))
+    {
+      lock_release(&file_lock);
+    }
+
+    if(lock_held_by_current_thread(&write_lock))
+    {
+      lock_release(&write_lock);
+    }
+
   //Jasper done driving
   
   /* Destroy the current process's page directory and switch back
@@ -729,9 +742,9 @@ install_page (void *upage, void *kpage, bool writable)
  
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-     return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
-  // return (pagedir_get_page (t->pagedir, upage) == NULL
-  //         && pagedir_set_page (t->pagedir, upage, kpage, writable));
+    // return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
  
 
