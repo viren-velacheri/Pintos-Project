@@ -742,9 +742,22 @@ install_page (void *upage, void *kpage, bool writable)
  
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-    // return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+     //return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
+  if(pagedir_get_page (t->pagedir, upage) != NULL)
+  {
+    return false;
+  }
+  if(!pagedir_set_page (t->pagedir, upage, kpage, writable))
+  {
+    return false;
+  }
+
+  lock_acquire(&frame_lock);
+  bool temp = frame_available(t, upage, kpage, writable);
+  lock_release(&frame_lock);
+  return temp;
+  // return (pagedir_get_page (t->pagedir, upage) == NULL
+  //         && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
  
 

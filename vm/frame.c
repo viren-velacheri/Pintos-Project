@@ -11,7 +11,7 @@
 #define NO_SPOT -1
 void init_frame(void);
 int open_frame(void);
-bool frame_available(struct thread *t);
+bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable);
 
 void init_frame(void)
 {
@@ -37,7 +37,7 @@ int open_frame(void)
     return NO_SPOT;
 }
 
-bool frame_available(struct thread *t)
+bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable)
 {
     int open_spot = open_frame();
     if(open_spot != NO_SPOT)
@@ -48,6 +48,9 @@ bool frame_available(struct thread *t)
             return false;
         }
         f->owner_thread = t;
+        f->upage = upage;
+        f->kpage = kpage;
+        f->writeable = writeable;
         // f->resident_page = p;
         frame_table[open_spot] = f;
         return true;

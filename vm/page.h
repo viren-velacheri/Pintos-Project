@@ -9,14 +9,14 @@
 #include "lib/kernel/hash.h"
 #include "devices/block.h"
 
-struct hash *page_table;
-
 struct page 
 {
-    struct hash_elem hash_element;
+    struct hash_elem hash_elem;
     block_sector_t swap_index; // position on swap if applicable
     block_sector_t file_index; // position in filesys if applicable
-    void *user_page; // pointer to beginning of page (virtual address)
+    void *addr; // pointer to beginning of page (virtual address)
 };
+
+
 
 #endif

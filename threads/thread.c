@@ -14,6 +14,8 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/syscall.h"
+#include "vm/frame.h"
+#include "lib/kernel/hash.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -96,6 +98,7 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  init_frame();
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -105,6 +108,27 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
+
+	
+/* Returns a hash value for page p. */
+unsigned
+page_hash (const struct hash_elem *p_, void *aux UNUSED)
+{
+  const struct page *p = hash_entry (p_, struct page, hash_elem);
+  return hash_bytes (&p->addr, sizeof p->addr);
+}
+
+/* Returns true if page a precedes page b. */
+bool
+page_less (const struct hash_elem *a_, const struct hash_elem *b_,
+           void *aux UNUSED)
+{
+  const struct page *a = hash_entry (a_, struct page, hash_elem);
+  const struct page *b = hash_entry (b_, struct page, hash_elem);
+
+  return a->addr < b->addr;
+}
+
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
@@ -522,7 +546,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->curr_file_index = 2;
   files_init(t->set_of_files); // array of files initialized
   list_init(&t->child_list);  // child list initialized.
-
+  //hash_init(t->page_table, page_hash, page_less, NULL);
 
 
   old_level = intr_disable();

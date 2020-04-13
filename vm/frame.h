@@ -26,5 +26,5 @@ struct lock frame_lock;
 
 void init_frame(void);
 int open_frame(void);
-bool frame_available(struct thread *t);
+bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable);
 #endif
