@@ -20,6 +20,8 @@
 #include "userprog/syscall.h"
 #include "threads/synch.h"
 #include "vm/frame.h"
+#include "lib/kernel/hash.h"
+#include "vm/page.h"
 
 
 static thread_func start_process NO_RETURN;
@@ -85,8 +87,8 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  hash_init(&thread_current()->page_table, page_hash, page_less, NULL);
   success = load (file_name, &if_.eip, &if_.esp);
- 
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
@@ -743,21 +745,22 @@ install_page (void *upage, void *kpage, bool writable)
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
      //return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
-  if(pagedir_get_page (t->pagedir, upage) != NULL)
-  {
-    return false;
-  }
-  if(!pagedir_set_page (t->pagedir, upage, kpage, writable))
-  {
-    return false;
-  }
+  // if(pagedir_get_page (t->pagedir, upage) != NULL)
+  // {
+  //   return false;
+  // }
+  // if(!pagedir_set_page (t->pagedir, upage, kpage, writable))
+  // {
+  //   return false;
+  // }
 
-  lock_acquire(&frame_lock);
-  bool temp = frame_available(t, upage, kpage, writable);
-  lock_release(&frame_lock);
-  return temp;
-  // return (pagedir_get_page (t->pagedir, upage) == NULL
-  //         && pagedir_set_page (t->pagedir, upage, kpage, writable));
+  // lock_acquire(&frame_lock);
+  // //bool temp = frame_available(t, upage, kpage, writable);
+  // lock_release(&frame_lock);
+  // return temp;
+  
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
  
 

@@ -10,13 +10,16 @@
 #include <string.h>
 #include "vm/page.h"
 #include "threads/synch.h"
+#include "threads/loader.h"
+#include "filesys/file.h"
 
 #define NUM_FRAMES 367
 
 struct frame {
-    struct thread *owner_thread; //thread that owns the page in this frame
+    struct thread *owner_thread; // thread that owns the page in this frame
 	void *upage;
     void *kpage;
+    void *page;
     struct page *resident_page;
     bool writeable;
 };
@@ -26,5 +29,5 @@ struct lock frame_lock;
 
 void init_frame(void);
 int open_frame(void);
-bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable);
+void * frame_available(struct thread *t);
 #endif

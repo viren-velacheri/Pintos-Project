@@ -11,7 +11,7 @@
 #define NO_SPOT -1
 void init_frame(void);
 int open_frame(void);
-bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable);
+void * frame_available(struct thread *t);
 
 void init_frame(void)
 {
@@ -37,28 +37,32 @@ int open_frame(void)
     return NO_SPOT;
 }
 
-bool frame_available(struct thread *t, void *upage, void *kpage, bool writeable)
+void *frame_available(struct thread *t)
 {
     int open_spot = open_frame();
+
     if(open_spot != NO_SPOT)
     {
-        struct frame *f = palloc_get_page(PAL_USER);
-        if(f == NULL)
+        void *page = palloc_get_page(PAL_USER);
+        if(page == NULL)
         {
-            return false;
+            return NULL;
         }
+        struct frame *f = malloc(sizeof(struct frame));
         f->owner_thread = t;
-        f->upage = upage;
-        f->kpage = kpage;
-        f->writeable = writeable;
+        f->page = page;
+        // f->upage = upage;
+        // f->kpage = kpage;
+        //f->writeable = writeable;
         // f->resident_page = p;
         frame_table[open_spot] = f;
-        return true;
+        return page;
     }
     else
     {
-        return false;
+        PANIC("PAGE FAULT");
     }
+    return NULL;
 }
 
 
