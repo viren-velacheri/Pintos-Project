@@ -9,9 +9,9 @@
 #include "threads/synch.h"
 
 #define NO_SPOT -1
-void init_frame(void);
-int open_frame(void);
-void * frame_available(struct thread *t);
+// void init_frame(void);
+// int open_frame(void);
+// void * frame_available(void);
 
 void init_frame(void)
 {
@@ -37,7 +37,7 @@ int open_frame(void)
     return NO_SPOT;
 }
 
-void *frame_available(struct thread *t)
+void *get_frame()
 {
     int open_spot = open_frame();
 
@@ -49,7 +49,7 @@ void *frame_available(struct thread *t)
             return NULL;
         }
         struct frame *f = malloc(sizeof(struct frame));
-        f->owner_thread = t;
+        f->owner_thread = thread_current();
         f->page = page;
         // f->upage = upage;
         // f->kpage = kpage;

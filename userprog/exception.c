@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -157,6 +158,21 @@ page_fault (struct intr_frame *f)
   {
      valid_pointer_check(fault_addr);
   }
+
+  struct page p = find_page(fault_addr);
+  if(p == NULL) {
+     kill(f);
+  }
+  if(p->swap_index != NULL) {
+     //get it from swap
+     //set swap_index to NULL
+  }
+  else {
+     //do loading from file like in load_segment
+     //install page here?
+  }
+
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

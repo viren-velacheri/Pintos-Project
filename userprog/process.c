@@ -535,12 +535,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
- 
+
+      struct page new_page;
+      new_page->addr = upage;
+      new_page->resident_file = file;
+      new_page->offset = ofs;
+      hash_insert(&thread_current()->page_table, &p->hash_elem);
+
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      //call this in page fault handler instead
+      uint8_t *kpage = get_frame();//palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
- 
+
+      //adding pages to page table but don't load them
+      //declare page struct, set its elements and then hash_insert
+
+      //do this in page fault handler when page is in filesystem
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
@@ -597,7 +608,7 @@ setup_stack (void **esp, const char* file_name)
   uint8_t *kpage;
   bool success = false;
   
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = frame_available();//palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

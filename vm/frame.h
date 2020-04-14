@@ -29,5 +29,5 @@ struct lock frame_lock;
 
 void init_frame(void);
 int open_frame(void);
-void * frame_available(struct thread *t);
+void * get_frame(void);
 #endif
