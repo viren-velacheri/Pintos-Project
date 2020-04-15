@@ -432,7 +432,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-              if (!load_segment(file, file_page, (void *) mem_page,
+              if (!lazy_loading(file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
                 goto done;
             }
@@ -461,7 +461,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 }
 /* load() helpers. */
  
-static bool install_page (void *upage, void *kpage, bool writable);
+//static bool install_page (void *upage, void *kpage, bool writable);
  
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -600,14 +600,15 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       lock_acquire(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
+        lock_release(&thread_current()->page_table_lock);
         return false;
       }
       lock_release(&thread_current()->page_table_lock);
       /* Get a page of memory. */
       //call this in page fault handler instead
-      uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      // uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+      // if (kpage == NULL)
+      //   return false;
 
       // //adding pages to page table but don't load them
       // //declare page struct, set its elements and then hash_insert
@@ -812,7 +813,7 @@ setup_stack (void **esp, const char* file_name)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

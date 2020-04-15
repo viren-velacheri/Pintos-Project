@@ -48,14 +48,14 @@ void *get_frame(enum palloc_flags flag)
         {
             return NULL;
         }
-        struct frame *f = malloc(sizeof(struct frame));
-        f->owner_thread = thread_current();
-        f->page = page;
+        struct frame f;
+        f.owner_thread = thread_current();
+        f.page = page;
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
         // f->resident_page = p;
-        frame_table[open_spot] = f;
+        frame_table[open_spot] = &f;
         return page;
     }
     else

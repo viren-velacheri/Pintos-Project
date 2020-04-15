@@ -6,6 +6,9 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 #include "vm/page.h"
+#include "vm/frame.h"
+#include "userprog/process.h"
+#include "threads/vaddr.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -154,37 +157,69 @@ page_fault (struct intr_frame *f)
   // Do valid pointer check on fault address so that we exit
   // with status of -1 when executing/reading/writing to an unmapped
   // user virtual address.
-  if(user)
+  if(fault_addr == NULL || is_kernel_vaddr(fault_addr))
   {
-     valid_pointer_check(fault_addr);
+     exit(-1);
+     //valid_pointer_check(fault_addr);
   }
-
+  //lock_acquire(&thread_current()->page_table_lock);
   struct page *p = find_page(fault_addr);
+  //lock_release(&thread_current()->page_table_lock);
   if(p == NULL) {
      kill(f);
   }
-  if(p->swap_index != NULL) {
-     //get it from swap
-     //set swap_index to NULL
-  }
+//   if(p->swap_index != NULL) {
+//      //get it from swap
+//      //set swap_index to NULL
+//   }
   else {
+     lock_acquire(&frame_lock);
+     uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+     lock_release(&frame_lock);
+      if (kpage == NULL)
+      {
+         exit(-1); // 
+      }
+
+      //adding pages to page table but don't load them
+      //declare page struct, set its elements and then hash_insert
+
+      //do this in page fault handler when page is in filesystem
+      /* Load this page. */
+      lock_acquire(&file_lock);
+      file_seek (p->resident_file, p->offset);
+      if (file_read (p->resident_file, kpage, p->read_bytes) != (int) p->read_bytes)
+        {
+          palloc_free_page (kpage);
+          lock_release(&file_lock);
+          exit(-1);
+        }
+      lock_release(&file_lock);
+      memset (kpage + p->read_bytes, 0, p->zero_bytes);
+ 
+      /* Add the page to the process's address space. */
+      if (!install_page (p->addr, kpage, p->writable)) 
+        {
+          palloc_free_page (kpage);
+          exit(-1);
+        }
      //do loading from file like in load_segment
      //install page here?
   }
 
 
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+//   /* To implement virtual memory, delete the rest of the function
+//      body, and replace it with code that brings in the page to
+//      which fault_addr refers. */
+//   printf ("Page fault at %p: %s error %s page in %s context.\n",
+//           fault_addr,
+//           not_present ? "not present" : "rights violation",
+//           write ? "writing" : "reading",
+//           user ? "user" : "kernel");
 
-  printf("There is no crying in Pintos!\n");
+//   printf("There is no crying in Pintos!\n");
 
-  kill (f);
+//   kill (f);
 }
 

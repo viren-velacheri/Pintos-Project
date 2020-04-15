@@ -14,7 +14,7 @@ struct page
 {
     struct hash_elem hash_elem;
     block_sector_t swap_index; // position on swap if applicable
-    block_sector_t file_index; // position in filesys if applicable
+    ///block_sector_t file_index; // position in filesys if applicable
     void *addr; // pointer to beginning of page (virtual address)
     struct file *resident_file;
     off_t offset;
