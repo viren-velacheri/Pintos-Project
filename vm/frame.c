@@ -37,13 +37,13 @@ int open_frame(void)
     return NO_SPOT;
 }
 
-void *get_frame()
+void *get_frame(enum palloc_flags flag)
 {
     int open_spot = open_frame();
 
     if(open_spot != NO_SPOT)
     {
-        void *page = palloc_get_page(PAL_USER);
+        void *page = palloc_get_page(flag);
         if(page == NULL)
         {
             return NULL;

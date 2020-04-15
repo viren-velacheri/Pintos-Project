@@ -11,9 +11,10 @@
 #include "vm/page.h"
 #include "threads/synch.h"
 #include "threads/loader.h"
+#include "threads/palloc.h"
 #include "filesys/file.h"
 
-#define NUM_FRAMES 367
+#define NUM_FRAMES 367 // Number of pages in user pool.
 
 struct frame {
     struct thread *owner_thread; // thread that owns the page in this frame
@@ -29,5 +30,5 @@ struct lock frame_lock;
 
 void init_frame(void);
 int open_frame(void);
-void * get_frame(void);
+void * get_frame(enum palloc_flags flag);
 #endif

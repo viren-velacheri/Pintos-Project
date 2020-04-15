@@ -159,7 +159,7 @@ page_fault (struct intr_frame *f)
      valid_pointer_check(fault_addr);
   }
 
-  struct page p = find_page(fault_addr);
+  struct page *p = find_page(fault_addr);
   if(p == NULL) {
      kill(f);
   }

@@ -8,6 +8,7 @@
 #include <string.h>
 #include "lib/kernel/hash.h"
 #include "devices/block.h"
+#include "filesys/file.h"
 
 struct page 
 {
@@ -17,6 +18,10 @@ struct page
     void *addr; // pointer to beginning of page (virtual address)
     struct file *resident_file;
     off_t offset;
+    uint32_t read_bytes;
+    uint32_t zero_bytes;
+    bool writable;
+    uint8_t *upage;
 };
 
 unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);

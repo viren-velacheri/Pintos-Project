@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lib/kernel/hash.h"
+#include "threads/thread.h"
 
 /* Returns a hash value for page p. */
 unsigned
@@ -25,7 +26,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 }
 
 struct page *find_page(void *fault_addr){
-  struct page p;
+  struct page *p;
   struct hash_elem *e;
   p->addr = fault_addr;
   e = hash_find(&thread_current()->page_table, &p->hash_elem);

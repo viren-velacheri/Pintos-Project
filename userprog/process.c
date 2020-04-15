@@ -88,6 +88,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   hash_init(&thread_current()->page_table, page_hash, page_less, NULL);
+  lock_init(&thread_current()->page_table_lock);
   success = load (file_name, &if_.eip, &if_.esp);
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -311,6 +312,8 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
+static bool lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable);
  
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -328,14 +331,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //Jordan driving now
  
-  char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
+  char *filename = get_frame(PAL_ZERO | PAL_USER); //palloc_get_page(PAL_ZERO | PAL_USER)
   if(filename == NULL)
   {
     return false;
   }
   memcpy(filename, file_name, strlen(file_name) + 1);
   char *token, *save_ptr;
-  char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);
+  char *actualFileName = get_frame(PAL_ZERO | PAL_USER); //palloc_get_page(PAL_ZERO | PAL_USER)
   if(actualFileName == NULL)
   {
     return false;
@@ -429,7 +432,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-              if (!load_segment (file, file_page, (void *) mem_page,
+              if (!load_segment(file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
                 goto done;
             }
@@ -535,23 +538,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-      struct page new_page;
-      new_page->addr = upage;
-      new_page->resident_file = file;
-      new_page->offset = ofs;
-      hash_insert(&thread_current()->page_table, &p->hash_elem);
-
+ 
       /* Get a page of memory. */
-      //call this in page fault handler instead
-      uint8_t *kpage = get_frame();//palloc_get_page (PAL_USER);
+      uint8_t *kpage = get_frame(PAL_USER);
       if (kpage == NULL)
         return false;
-
-      //adding pages to page table but don't load them
-      //declare page struct, set its elements and then hash_insert
-
-      //do this in page fault handler when page is in filesystem
+ 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
@@ -574,6 +566,78 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     }
   
   return true;
+}
+
+static bool
+lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+{
+  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (ofs % PGSIZE == 0);
+ 
+  file_seek (file, ofs);
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      struct page *new_page = malloc(sizeof(struct page));
+      if(new_page == NULL)
+      {
+        return false;
+      }
+      
+      new_page->addr = upage;
+      new_page->resident_file = file;
+      new_page->offset = ofs;
+      new_page->read_bytes = read_bytes;
+      new_page->zero_bytes = zero_bytes;
+      new_page->writable = writable;
+      lock_acquire(&thread_current()->page_table_lock);
+      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
+      {
+        return false;
+      }
+      lock_release(&thread_current()->page_table_lock);
+      /* Get a page of memory. */
+      //call this in page fault handler instead
+      uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+      if (kpage == NULL)
+        return false;
+
+      // //adding pages to page table but don't load them
+      // //declare page struct, set its elements and then hash_insert
+
+      // //do this in page fault handler when page is in filesystem
+      // /* Load this page. */
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
+ 
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+ 
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+      ofs += PGSIZE;
+    }
+  
+  return true;
+
+
 }
 
 // Jordan drove here
@@ -608,7 +672,7 @@ setup_stack (void **esp, const char* file_name)
   uint8_t *kpage;
   bool success = false;
   
-  kpage = frame_available();//palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -623,12 +687,12 @@ setup_stack (void **esp, const char* file_name)
         *esp = PHYS_BASE;
         char* myesp = (char *)*esp;
  
-        char** temp_args = palloc_get_page(PAL_USER | PAL_ZERO);
+        char** temp_args = get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO)
         if(temp_args == NULL)
         {
           return false;
         }
-        char* fn_copy = palloc_get_page(PAL_USER | PAL_ZERO);
+        char* fn_copy =get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO)
         if(fn_copy == NULL)
         {
           return false;
@@ -648,7 +712,7 @@ setup_stack (void **esp, const char* file_name)
         //Viren done driving
         //Jasper driving now
 
-        char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
+        char** argv = get_frame(PAL_USER | PAL_ZERO); // palloc_get_page(PAL_USER | PAL_ZERO)
         if(argv == NULL)
         {
           return false;
