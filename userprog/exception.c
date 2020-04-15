@@ -162,12 +162,22 @@ page_fault (struct intr_frame *f)
      exit(-1);
      //valid_pointer_check(fault_addr);
   }
-  //lock_acquire(&thread_current()->page_table_lock);
+  char *temp_esp = f->esp;
+  //if(PHYS_BASE - temp_esp >= max stack size)
+      //limit is reached
+  if(fault_addr >= (temp_esp + 32)) {
+     //grow the stack
+  }
+
+  lock_acquire(&thread_current()->page_table_lock);
   struct page *p = find_page(fault_addr);
-  //lock_release(&thread_current()->page_table_lock);
+//   printf("upage: %p\n", p->addr);
+//   printf("fault addr: %p\n", fault_addr);
+  lock_release(&thread_current()->page_table_lock);
   if(p == NULL) {
      kill(f);
   }
+  
 //   if(p->swap_index != NULL) {
 //      //get it from swap
 //      //set swap_index to NULL
@@ -196,13 +206,15 @@ page_fault (struct intr_frame *f)
         }
       lock_release(&file_lock);
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
- 
+
+      
       /* Add the page to the process's address space. */
       if (!install_page (p->addr, kpage, p->writable)) 
         {
           palloc_free_page (kpage);
           exit(-1);
         }
+        
      //do loading from file like in load_segment
      //install page here?
   }

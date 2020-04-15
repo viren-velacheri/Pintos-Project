@@ -594,8 +594,8 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->addr = upage;
       new_page->resident_file = file;
       new_page->offset = ofs;
-      new_page->read_bytes = read_bytes;
-      new_page->zero_bytes = zero_bytes;
+      new_page->read_bytes = page_read_bytes;
+      new_page->zero_bytes = page_zero_bytes;
       new_page->writable = writable;
       lock_acquire(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
@@ -676,24 +676,24 @@ setup_stack (void **esp, const char* file_name)
   kpage = get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
+      
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       /*decrement the stack pointer and add elements(arguments) to the 
       stack according to calling convention while checking that the stack 
       pointer doesn't exceed its allowed size after each element is added */
       if (success) 
       {
-
         //Viren driving now
 
         *esp = PHYS_BASE;
         char* myesp = (char *)*esp;
  
-        char** temp_args = get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO)
+        char** temp_args = palloc_get_page (PAL_USER | PAL_ZERO);
         if(temp_args == NULL)
         {
           return false;
         }
-        char* fn_copy =get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO)
+        char* fn_copy = palloc_get_page (PAL_USER | PAL_ZERO);
         if(fn_copy == NULL)
         {
           return false;
@@ -713,7 +713,7 @@ setup_stack (void **esp, const char* file_name)
         //Viren done driving
         //Jasper driving now
 
-        char** argv = get_frame(PAL_USER | PAL_ZERO); // palloc_get_page(PAL_USER | PAL_ZERO)
+        char** argv = palloc_get_page(PAL_USER | PAL_ZERO);
         if(argv == NULL)
         {
           return false;
@@ -793,7 +793,6 @@ setup_stack (void **esp, const char* file_name)
         palloc_free_page(fn_copy);
       
         *esp = myesp;
-
         //Brock done driving
         }
       else
