@@ -15,13 +15,14 @@ struct page
     struct hash_elem hash_elem;
     block_sector_t swap_index; // position on swap if applicable
     ///block_sector_t file_index; // position in filesys if applicable
-    void *addr; // pointer to beginning of page (virtual address)
+    void *addr; // Unless... should we have each page hold the spot it was in frame?
     struct file *resident_file;
     off_t offset;
     uint32_t read_bytes;
     uint32_t zero_bytes;
     bool writable;
     uint8_t *upage;
+    int frame_spot;
 };
 
 unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);

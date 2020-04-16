@@ -291,7 +291,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     //Jordan done driving
     //Brock driving now
-    // System call that writes a certain amount of bytes from buffer
+    // System call that writes a certain amount of bytes from buffer 
     // to the open file designated by file descriptor. Returns number
     // of bytes written or 0 if none could be written.
     case SYS_WRITE:

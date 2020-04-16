@@ -188,12 +188,24 @@ page_fault (struct intr_frame *f)
         lock_release(&thread_current()->page_table_lock);
         exit(-1);
       }
-      lock_release(&thread_current()->page_table_lock);
+      lock_release(&thread_current()->page_table_lock); 
+      lock_acquire(&frame_lock);
       void *kpage = get_frame(PAL_USER);
       if(kpage == NULL)
       {
+         lock_release(&frame_lock); 
          exit(-1);
       }
+      int i;
+      for(i = 0; i < NUM_FRAMES; i++)
+      {
+         if(frame_table[i]->page == kpage)
+         {
+            new_page->frame_spot = i;
+            break;
+         }
+      }
+      lock_release(&frame_lock);
       if(!install_page(new_page->addr, kpage, new_page->writable))
       {
        palloc_free_page (kpage);
@@ -221,6 +233,15 @@ page_fault (struct intr_frame *f)
   else {
      lock_acquire(&frame_lock);
      uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+     int i; 
+     for(i = 0; i < NUM_FRAMES; i++)
+      {
+         if(frame_table[i]->page == kpage)
+         {
+            p->frame_spot = i;
+            break;
+         }
+      }
      lock_release(&frame_lock);
       if (kpage == NULL)
       {

@@ -18,8 +18,8 @@
 
 struct frame {
     struct thread *owner_thread; // thread that owns the page in this frame
-	void *upage;
-    void *kpage;
+	//void *upage;
+    //void *kpage;
     void *page;
     struct page *resident_page;
     bool writeable;
