@@ -27,10 +27,9 @@ void valid_pointer_check(void * ptr)
   // If the pointer is null or it is a kernel and not user address 
   // or if address is unmapped, exit with -1 error status.
   // Otherwise, nothing happens.
-  if(ptr == NULL || is_kernel_vaddr (ptr) || 
-  pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
+  if(ptr == NULL || is_kernel_vaddr (ptr)) 
     {
-      exit(ERROR);
+      exit(-1);
     }
 }
 
@@ -43,18 +42,18 @@ void fd_exist_check(struct thread *t, int fd, int low_limit)
   // A simple check to see if file exists or not based on given fd.
   if(fd < low_limit || fd >= t->curr_file_index) 
   {
-    exit(ERROR);
+    exit(-1);
   }
 }
 
 /* Used to check if file exists or not. Used in case where 
 fd is valid but file was closed earlier. Only parameter is the respective
-file to check. If it is NULL, exit with -1 error status. */
+file to check. If it is NULL, exit with -1 error status. */ // Yeah I think i have the same settings but not sure. Oh whoa We are failing less
 void file_exist_check(struct file *f) 
 {
   if(f == NULL)
   {
-    exit(ERROR);
+    exit(-1);
   }
 }
 
@@ -81,7 +80,10 @@ void exit(int status)
   thread_current()->exit_status = status;
   
   //close this thread's executable (allows writes)
-  lock_acquire(&file_lock);
+  if(!lock_held_by_current_thread(&file_lock))
+  {
+    lock_acquire(&file_lock);
+  }
   file_close(thread_current()->executable);
   lock_release(&file_lock);
 
@@ -276,9 +278,15 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_exist_check(file_to_read);
       //use synchronization with the file lock when
       //accessing the file system
+      if(!lock_held_by_current_thread(&file_lock))
+      {
       lock_acquire(&file_lock);
+      }
       f->eax = file_read(file_to_read, buffer, size);
+      if(lock_held_by_current_thread(&file_lock))
+      {
       lock_release(&file_lock);
+      }
       break;
 
     //Jordan done driving

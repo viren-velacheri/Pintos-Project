@@ -162,20 +162,56 @@ page_fault (struct intr_frame *f)
      exit(-1);
      //valid_pointer_check(fault_addr);
   }
-  char *temp_esp = f->esp;
+  //char *temp_esp = f->esp;
   //if(PHYS_BASE - temp_esp >= max stack size)
-      //limit is reached
-  if(fault_addr >= (temp_esp + 32)) {
-     //grow the stack
-  }
 
-  lock_acquire(&thread_current()->page_table_lock);
+      //limit is reached
+  if(write && fault_addr >= (f->esp - 32)) { 
+   //   if(PHYS_BASE - fault_addr >= 8 * PGSIZE)
+   //    {
+   //      exit(-3);
+   //    }
+     struct page *new_page = malloc(sizeof(struct page));
+      if(new_page == NULL)
+      {
+        exit(-1);
+      }
+      new_page->addr = pg_round_down(fault_addr);
+      new_page->resident_file = NULL;
+      new_page->offset = NULL;
+      new_page->read_bytes = 0;
+      new_page->zero_bytes = 0;
+      new_page->writable = true;
+      lock_acquire(&thread_current()->page_table_lock);
+      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
+      {
+        lock_release(&thread_current()->page_table_lock);
+        exit(-1);
+      }
+      lock_release(&thread_current()->page_table_lock);
+      void *kpage = get_frame(PAL_USER);
+      if(kpage == NULL)
+      {
+         exit(-1);
+      }
+      if(!install_page(new_page->addr, kpage, new_page->writable))
+      {
+       palloc_free_page (kpage);
+       exit(-1);  
+      }
+      //
+     //grow the stack
+
+  } else { 
+
+  lock_acquire(&thread_current()->page_table_lock); //
   struct page *p = find_page(fault_addr);
 //   printf("upage: %p\n", p->addr);
 //   printf("fault addr: %p\n", fault_addr);
   lock_release(&thread_current()->page_table_lock);
   if(p == NULL) {
-     kill(f);
+     exit(-1);
+     //kill(f);
   }
   
 //   if(p->swap_index != NULL) {
@@ -218,7 +254,7 @@ page_fault (struct intr_frame *f)
      //do loading from file like in load_segment
      //install page here?
   }
-
+  }
 
 
 //   /* To implement virtual memory, delete the rest of the function

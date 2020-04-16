@@ -722,10 +722,10 @@ setup_stack (void **esp, const char* file_name)
         while(j >= 0) 
         {
           myesp -= (strlen(temp_args[j]) + 1);
-          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          {
-            return false;
-          }
+          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          // {
+          //   return false;
+          // }
           byte_size += (strlen(temp_args[j]) + 1);
           memcpy(myesp, temp_args[j], strlen(temp_args[j]) + 1);
           argv[j] = myesp;
@@ -737,10 +737,10 @@ setup_stack (void **esp, const char* file_name)
         if(j) 
         {
           myesp -= j;
-          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          {
-            return false;
-          }
+          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          // {
+          //   return false;
+          // }
       
           memcpy(myesp, &argv[argc], j);
         }
@@ -752,10 +752,10 @@ setup_stack (void **esp, const char* file_name)
         while(k >= 0) 
         {
           myesp -= sizeof(char*);
-          if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          {
-            return false;
-          }
+          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+          // {
+          //   return false;
+          // }
       
           memcpy(myesp, &argv[k], sizeof(char*));
           k--;
@@ -764,27 +764,28 @@ setup_stack (void **esp, const char* file_name)
         token = myesp;
       
         myesp -= sizeof(char **);
-        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        {
-            return false;
-        }
+        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        // {
+        //     return false;
+        // }
       
         memcpy(myesp, &token, sizeof(char **));
         myesp -= sizeof(int);
-        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        {
-            return false;
-        }
+        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        // {
+        //     return false;
+        // }
         
         //Jordan done driving
         //Brock driving now
       
         memcpy(myesp, &argc, sizeof(int));
         myesp -= sizeof(void*);
-        if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        {
-            return false;
-        }
+        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
+        // {
+        //     return false;
+        // } 
+        // 
       
         memcpy(myesp, &argv[argc], sizeof(void *));
       
