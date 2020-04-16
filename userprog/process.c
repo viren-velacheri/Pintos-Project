@@ -211,6 +211,19 @@ process_exit (void)
   
   //Jasper done driving 
   
+  // struct hash_iterator it;
+
+  // hash_first (&it, &cur->page_table);
+  // while (hash_next (&it))
+  //   {
+  //     struct page *p = hash_entry (hash_cur (&it), struct page, hash_elem);
+  //     palloc_free_page(frame_table[p->frame_spot]->page);
+  //     frame_table[p->frame_spot] = NULL;
+  //     free(p);
+  //   }
+
+  // hash_destroy(&cur->page_table, NULL);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

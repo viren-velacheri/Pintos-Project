@@ -199,10 +199,12 @@ page_fault (struct intr_frame *f)
       int i;
       for(i = 0; i < NUM_FRAMES; i++)
       {
+         if(frame_table[i]!=NULL) {
          if(frame_table[i]->page == kpage)
          {
             new_page->frame_spot = i;
             break;
+         }
          }
       }
       lock_release(&frame_lock);
@@ -233,20 +235,23 @@ page_fault (struct intr_frame *f)
   else {
      lock_acquire(&frame_lock);
      uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+     if (kpage == NULL)
+      {
+         lock_release(&frame_lock);
+         exit(-1);
+      }
      int i; 
      for(i = 0; i < NUM_FRAMES; i++)
       {
+         if(frame_table[i] != NULL) {
          if(frame_table[i]->page == kpage)
          {
             p->frame_spot = i;
             break;
          }
+         }
       }
      lock_release(&frame_lock);
-      if (kpage == NULL)
-      {
-         exit(-1); // 
-      }
 
       //adding pages to page table but don't load them
       //declare page struct, set its elements and then hash_insert

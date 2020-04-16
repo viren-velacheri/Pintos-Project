@@ -27,7 +27,8 @@ void valid_pointer_check(void * ptr)
   // If the pointer is null or it is a kernel and not user address 
   // or if address is unmapped, exit with -1 error status.
   // Otherwise, nothing happens.
-  if(ptr == NULL || is_kernel_vaddr (ptr)) 
+  if(ptr == NULL || is_kernel_vaddr (ptr)|| 
+  pagedir_get_page(thread_current()->pagedir, ptr) == NULL) //|| pagedir_get_page(thread_current()->pagedir, ptr) == NULL
     {
       exit(-1);
     }
