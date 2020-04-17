@@ -157,7 +157,7 @@ page_fault (struct intr_frame *f)
   // Do valid pointer check on fault address so that we exit
   // with status of -1 when executing/reading/writing to an unmapped
   // user virtual address.
-  if(fault_addr == NULL || !not_present || is_kernel_vaddr(fault_addr))
+  if(fault_addr == NULL || is_kernel_vaddr(fault_addr))
   {
      exit(-1);
      //valid_pointer_check(fault_addr);
