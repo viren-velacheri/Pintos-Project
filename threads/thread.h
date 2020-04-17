@@ -127,6 +127,9 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
+void lock_acquire_check(struct lock *lock);
+void lock_release_check(struct lock *lock);
+
 
 void thread_tick (void);
 void thread_print_stats (void);

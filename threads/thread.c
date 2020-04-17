@@ -129,6 +129,22 @@ thread_start (void)
   sema_down (&idle_started);
 }
 
+void lock_acquire_check(struct lock *lock) 
+{
+  if(!lock_held_by_current_thread(lock))
+  {
+    lock_acquire(lock);
+  }
+}
+
+void lock_release_check(struct lock *lock) 
+{
+  if(lock_held_by_current_thread(lock))
+  {
+    lock_release(lock);
+  }
+}
+
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void

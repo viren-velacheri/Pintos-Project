@@ -27,8 +27,7 @@ void valid_pointer_check(void * ptr)
   // If the pointer is null or it is a kernel and not user address 
   // or if address is unmapped, exit with -1 error status.
   // Otherwise, nothing happens.
-  if(ptr == NULL || is_kernel_vaddr (ptr)|| 
-  pagedir_get_page(thread_current()->pagedir, ptr) == NULL) //|| pagedir_get_page(thread_current()->pagedir, ptr) == NULL
+  if(ptr == NULL || is_kernel_vaddr (ptr)) //|| pagedir_get_page(thread_current()->pagedir, ptr) == NULL
     {
       exit(-1);
     }
@@ -86,7 +85,7 @@ void exit(int status)
     lock_acquire(&file_lock);
   }
   file_close(thread_current()->executable);
-  lock_release(&file_lock);
+  lock_release_check(&file_lock);
 
   thread_exit();
 }
@@ -171,9 +170,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       f->eax = filesys_create(file, initial_size);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
 
     //Viren done driving
@@ -189,9 +188,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       f->eax = filesys_remove(file_to_remove);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
     
     // System call opens a file. The file descriptor or index in the array
@@ -205,9 +204,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       struct file *open_file = filesys_open(file_to_open);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       
       if(open_file == NULL) 
       {
@@ -243,9 +242,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_exist_check(file_at_fd);
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       f->eax = file_length(file_at_fd);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
     
     // System call that reads a certain number of bytes of open file
@@ -314,10 +313,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       //when fd is 1 write to the console using putbuf
       if(fd_write == STDOUT) 
       {
-        lock_acquire(&write_lock);
+        lock_acquire_check(&write_lock);
         putbuf((char *)buffer_write, size_write);
         f->eax = size_write;
-        lock_release(&write_lock);
+        lock_release_check(&write_lock);
       }
       //other cases when writing to a file
       else if(fd_write > STDOUT) 
@@ -328,9 +327,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         file_exist_check(file_to_write);
         //use synchronization with the file lock when
         //accessing the file system
-        lock_acquire(&file_lock);
+        lock_acquire_check(&file_lock);
         f->eax = file_write(file_to_write, buffer_write, size_write);
-        lock_release(&file_lock);
+        lock_release_check(&file_lock);
       }
       break;
     
@@ -354,9 +353,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_exist_check(file_to_seek);
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       file_seek(file_to_seek, position);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
 
     //Brock done driving
@@ -378,9 +377,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_exist_check(file_to_tell);
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       f->eax = file_tell(file_to_tell);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
 
     // System call closes the open file with given file descriptor.
@@ -408,9 +407,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       //use synchronization with the file lock when
       //accessing the file system
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       file_close(file_to_close);
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       break;
   }
 

@@ -157,7 +157,7 @@ page_fault (struct intr_frame *f)
   // Do valid pointer check on fault address so that we exit
   // with status of -1 when executing/reading/writing to an unmapped
   // user virtual address.
-  if(fault_addr == NULL || is_kernel_vaddr(fault_addr))
+  if(fault_addr == NULL || !not_present || is_kernel_vaddr(fault_addr))
   {
      exit(-1);
      //valid_pointer_check(fault_addr);
@@ -167,10 +167,10 @@ page_fault (struct intr_frame *f)
 
       //limit is reached
   if(write && fault_addr >= (f->esp - 32)) { 
-   //   if(PHYS_BASE - fault_addr >= 8 * PGSIZE)
-   //    {
-   //      exit(-3);
-   //    }
+     if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
+      {
+        exit(-1);
+      }
      struct page *new_page = malloc(sizeof(struct page));
       if(new_page == NULL)
       {
@@ -182,18 +182,18 @@ page_fault (struct intr_frame *f)
       new_page->read_bytes = 0;
       new_page->zero_bytes = 0;
       new_page->writable = true;
-      lock_acquire(&thread_current()->page_table_lock);
+      lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
-        lock_release(&thread_current()->page_table_lock);
+        lock_release_check(&thread_current()->page_table_lock);
         exit(-1);
       }
-      lock_release(&thread_current()->page_table_lock); 
-      lock_acquire(&frame_lock);
+      lock_release_check(&thread_current()->page_table_lock); 
+      lock_acquire_check(&frame_lock);
       void *kpage = get_frame(PAL_USER);
       if(kpage == NULL)
       {
-         lock_release(&frame_lock); 
+         lock_release_check(&frame_lock); 
          exit(-1);
       }
       int i;
@@ -207,7 +207,7 @@ page_fault (struct intr_frame *f)
          }
          }
       }
-      lock_release(&frame_lock);
+      lock_release_check(&frame_lock);
       if(!install_page(new_page->addr, kpage, new_page->writable))
       {
        palloc_free_page (kpage);
@@ -218,11 +218,11 @@ page_fault (struct intr_frame *f)
 
   } else { 
 
-  lock_acquire(&thread_current()->page_table_lock); //
+  lock_acquire_check(&thread_current()->page_table_lock); //
   struct page *p = find_page(fault_addr);
 //   printf("upage: %p\n", p->addr);
 //   printf("fault addr: %p\n", fault_addr);
-  lock_release(&thread_current()->page_table_lock);
+  lock_release_check(&thread_current()->page_table_lock);
   if(p == NULL) {
      exit(-1);
      //kill(f);
@@ -233,11 +233,11 @@ page_fault (struct intr_frame *f)
 //      //set swap_index to NULL
 //   }
   else {
-     lock_acquire(&frame_lock);
+     lock_acquire_check(&frame_lock);
      uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
      if (kpage == NULL)
       {
-         lock_release(&frame_lock);
+         lock_release_check(&frame_lock);
          exit(-1);
       }
      int i; 
@@ -251,22 +251,22 @@ page_fault (struct intr_frame *f)
          }
          }
       }
-     lock_release(&frame_lock);
+     lock_release_check(&frame_lock);
 
       //adding pages to page table but don't load them
       //declare page struct, set its elements and then hash_insert
 
       //do this in page fault handler when page is in filesystem
       /* Load this page. */
-      lock_acquire(&file_lock);
+      lock_acquire_check(&file_lock);
       file_seek (p->resident_file, p->offset);
       if (file_read (p->resident_file, kpage, p->read_bytes) != (int) p->read_bytes)
         {
           palloc_free_page (kpage);
-          lock_release(&file_lock);
+          lock_release_check(&file_lock);
           exit(-1);
         }
-      lock_release(&file_lock);
+      lock_release_check(&file_lock);
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
       
@@ -276,7 +276,6 @@ page_fault (struct intr_frame *f)
           palloc_free_page (kpage);
           exit(-1);
         }
-        
      //do loading from file like in load_segment
      //install page here?
   }

@@ -372,7 +372,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   //Brock driving now
 
-  lock_acquire(&file_lock);
+  lock_acquire_check(&file_lock);
   /* Open executable file. */
   file = filesys_open (actualFileName);
   if (file == NULL) 
@@ -467,7 +467,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   palloc_free_page(filename);
   palloc_free_page(actualFileName);
-  lock_release(&file_lock);
+  lock_release_check(&file_lock);
   return success;
 
   //Brock done driving
@@ -610,13 +610,13 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->read_bytes = page_read_bytes;
       new_page->zero_bytes = page_zero_bytes;
       new_page->writable = writable;
-      lock_acquire(&thread_current()->page_table_lock);
+      lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
-        lock_release(&thread_current()->page_table_lock);
+        lock_release_check(&thread_current()->page_table_lock);
         return false;
       }
-      lock_release(&thread_current()->page_table_lock);
+      lock_release_check(&thread_current()->page_table_lock);
       /* Get a page of memory. */
       //call this in page fault handler instead
       // uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
