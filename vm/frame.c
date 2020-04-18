@@ -7,6 +7,10 @@
 #include "vm/page.h"
 #include "threads/palloc.h"
 #include "threads/synch.h"
+#include "vm/swap.h"
+#include "lib/kernel/bitmap.h"
+#include "devices/block.h"
+#include "threads/vaddr.h"
 
 #define NO_SPOT -1
 // void init_frame(void);
@@ -60,10 +64,49 @@ void *get_frame(enum palloc_flags flag)
     }
     else
     {
-        PANIC("PAGE FAULT");
+        open_spot = random_evict();
+        void *page = palloc_get_page(flag);
+        if(page == NULL)
+        {
+            return NULL;
+        }
+        struct frame f;
+        f.owner_thread = thread_current();
+        f.page = page;
+        // f->upage = upage;
+        // f->kpage = kpage;
+        //f->writeable = writeable;
+        // f->resident_page = p;
+        frame_table[open_spot] = &f;
+        return page;
+        
     }
     return NULL;
 }
+
+int random_evict()
+{
+    int spot = random_ulong() % NUM_FRAMES;
+    while(frame_table[spot] == NULL)
+    {
+        spot = random_ulong() % NUM_FRAMES;
+    }
+    size_t sector_index = bitmap_scan_and_flip(swap_table, 0, 8, false);
+    if(sector_index != BITMAP_ERROR)
+    {
+    size_t i = 0;
+        while(i < 8) 
+        {
+            block_write(block_get_role(BLOCK_SWAP), sector_index + i, frame_table[spot]->page + i * 512);
+            i++;
+        }
+    palloc_free_page(frame_table[spot]->page);
+    frame_table[spot] = NULL;
+    return spot;
+    }
+    exit(-1);
+    return -1;
+} 
 
 
 

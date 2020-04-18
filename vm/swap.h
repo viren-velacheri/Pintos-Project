@@ -9,6 +9,6 @@
 #include "lib/kernel/bitmap.h"
 
 struct bitmap *swap_table;
-
+void swap_init(void);
 
 #endif

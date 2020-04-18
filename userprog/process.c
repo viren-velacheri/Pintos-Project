@@ -160,6 +160,8 @@ process_wait (tid_t child_tid UNUSED)
 
   //Brock done driving
 }
+
+
  
 /* Free the current process's resources. */
 void
@@ -210,19 +212,20 @@ process_exit (void)
     }
   
   //Jasper done driving 
-  
-  // struct hash_iterator it;
-
-  // hash_first (&it, &cur->page_table);
-  // while (hash_next (&it))
-  //   {
-  //     struct page *p = hash_entry (hash_cur (&it), struct page, hash_elem);
-  //     palloc_free_page(frame_table[p->frame_spot]->page);
-  //     frame_table[p->frame_spot] = NULL;
-  //     free(p);
-  //   }
-
-  // hash_destroy(&cur->page_table, NULL);
+//  lock_acquire_check(&thread_current()->page_table_lock);
+//    struct hash_iterator it;
+//   hash_first (&it, &thread_current()->page_table);
+//   while (hash_next (&it))
+//     {
+//       lock_acquire_check(&frame_lock);
+//       struct page *p = hash_entry (hash_cur (&it), struct page, hash_elem);
+//       palloc_free_page(frame_table[p->frame_spot]->page);
+//       frame_table[p->frame_spot] = NULL;
+//       free(p);
+//       lock_release_check(&frame_lock);
+//     }
+//   hash_destroy(&thread_current()->page_table, NULL);
+//   lock_release_check(&thread_current()->page_table_lock);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

@@ -37,6 +37,10 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
+#ifdef VM
+#include "vm/swap.h"
+#include "vm/frame.h"
+#endif
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -113,6 +117,7 @@ main (void)
 #ifdef USERPROG
   exception_init ();
   syscall_init ();
+  init_frame();
 #endif
 
   /* Start thread scheduler and enable interrupts. */
@@ -395,6 +400,7 @@ locate_block_devices (void)
   locate_block_device (BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device (BLOCK_SWAP, swap_bdev_name);
+  swap_init();
 #endif
 }
 

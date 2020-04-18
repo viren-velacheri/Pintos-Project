@@ -18,6 +18,8 @@
 #include "threads/loader.h"
 #include "lib/kernel/hash.h"
 #include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -100,10 +102,8 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
-  init_frame();
   list_init (&ready_list);
   list_init (&all_list);
-
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);

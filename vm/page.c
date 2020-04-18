@@ -6,6 +6,8 @@
 #include "lib/kernel/hash.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "lib/kernel/hash.h"
 
 /* Returns a hash value for page p. */
 unsigned
@@ -24,6 +26,15 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
   const struct page *b = hash_entry (b_, struct page, hash_elem);
 
   return a->addr < b->addr;
+}
+
+void page_removal(struct hash_elem *e, void *aux) 
+{
+  struct page *p = hash_entry (e, struct page, hash_elem);
+  void *pg = frame_table[p->frame_spot]->page;
+  frame_table[p->frame_spot] = NULL;
+  palloc_free_page(pg);
+  free(p);
 }
 
 struct page *find_page(void *fault_addr){
