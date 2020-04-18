@@ -7,7 +7,11 @@
 #include "userprog/syscall.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "userprog/process.h"
+#include "threads/vaddr.h"
+#include "lib/kernel/bitmap.h"
+#include "devices/block.h"
 #include "threads/vaddr.h"
 
 /* Number of page faults processed. */
@@ -166,6 +170,7 @@ page_fault (struct intr_frame *f)
   //if(PHYS_BASE - temp_esp >= max stack size)
 
       //limit is reached
+      printf("Fault addr: %p\n Esp: %p", fault_addr, f->esp);
   if(write && fault_addr >= (f->esp - 32)) { 
      if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
       {
@@ -182,6 +187,7 @@ page_fault (struct intr_frame *f)
       new_page->read_bytes = 0;
       new_page->zero_bytes = 0;
       new_page->writable = true;
+      new_page->swap_index = -1;
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
@@ -190,7 +196,7 @@ page_fault (struct intr_frame *f)
       }
       lock_release_check(&thread_current()->page_table_lock); 
       lock_acquire_check(&frame_lock);
-      void *kpage = get_frame(PAL_USER);
+      void *kpage = get_frame(PAL_USER, new_page);
       if(kpage == NULL)
       {
          lock_release_check(&frame_lock); 
@@ -228,13 +234,41 @@ page_fault (struct intr_frame *f)
      //kill(f);
   }
   
-//   if(p->swap_index != NULL) {
-//      //get it from swap
-//      //set swap_index to NULL
-//   }
+  if(p->swap_index != -1) {
+     lock_acquire_check(&frame_lock);
+     uint8_t *kpage = get_frame(PAL_USER, p);//palloc_get_page (PAL_USER);
+     if (kpage == NULL)
+      {
+         lock_release_check(&frame_lock);
+         exit(-1);
+      }
+      int i; 
+     for(i = 0; i < NUM_FRAMES; i++)
+      {
+         if(frame_table[i] != NULL) {
+         if(frame_table[i]->page == kpage)
+         {
+            p->frame_spot = i;
+            break;
+         }
+         }
+      }
+     lock_release_check(&frame_lock);
+     i = 0;
+     struct block *b = block_get_role(BLOCK_SWAP);
+        while(i < 8) 
+        {
+            block_read(b, p->swap_index + i, kpage + i * 512);
+            i++;
+        }
+        bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
+        p->swap_index = -1;
+     //get it from swap
+     //set swap_index to NULL
+  }
   else {
      lock_acquire_check(&frame_lock);
-     uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
+     uint8_t *kpage = get_frame(PAL_USER, p);//palloc_get_page (PAL_USER);
      if (kpage == NULL)
       {
          lock_release_check(&frame_lock);

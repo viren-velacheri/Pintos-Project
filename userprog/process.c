@@ -347,14 +347,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //Jordan driving now
  
-  char *filename = get_frame(PAL_ZERO | PAL_USER); //palloc_get_page(PAL_ZERO | PAL_USER)
+  char *filename = palloc_get_page(PAL_ZERO | PAL_USER);
   if(filename == NULL)
   {
     return false;
   }
   memcpy(filename, file_name, strlen(file_name) + 1);
   char *token, *save_ptr;
-  char *actualFileName = get_frame(PAL_ZERO | PAL_USER); //palloc_get_page(PAL_ZERO | PAL_USER)
+  char *actualFileName = palloc_get_page(PAL_ZERO | PAL_USER);
   if(actualFileName == NULL)
   {
     return false;
@@ -556,7 +556,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
  
       /* Get a page of memory. */
-      uint8_t *kpage = get_frame(PAL_USER);
+      uint8_t *kpage = get_frame(PAL_USER, NULL);
       if (kpage == NULL)
         return false;
  
@@ -613,6 +613,7 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->read_bytes = page_read_bytes;
       new_page->zero_bytes = page_zero_bytes;
       new_page->writable = writable;
+      new_page->swap_index = -1;
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
@@ -689,7 +690,7 @@ setup_stack (void **esp, const char* file_name)
   uint8_t *kpage;
   bool success = false;
   
-  kpage = get_frame(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = get_frame(PAL_USER | PAL_ZERO, NULL);//palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       

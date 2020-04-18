@@ -41,7 +41,7 @@ int open_frame(void)
     return NO_SPOT;
 }
 
-void *get_frame(enum palloc_flags flag)
+void *get_frame(enum palloc_flags flag, struct page *p)
 {
     int open_spot = open_frame();
 
@@ -58,7 +58,7 @@ void *get_frame(enum palloc_flags flag)
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
-        // f->resident_page = p;
+        //f->resident_page = p;
         frame_table[open_spot] = &f;
         return page;
     }
@@ -84,7 +84,7 @@ void *get_frame(enum palloc_flags flag)
     return NULL;
 }
 
-int random_evict()
+int random_evict(struct page *p)
 {
     int spot = random_ulong() % NUM_FRAMES;
     while(frame_table[spot] == NULL)
@@ -95,11 +95,13 @@ int random_evict()
     if(sector_index != BITMAP_ERROR)
     {
     size_t i = 0;
+    struct block *b = block_get_role(BLOCK_SWAP);
         while(i < 8) 
         {
-            block_write(block_get_role(BLOCK_SWAP), sector_index + i, frame_table[spot]->page + i * 512);
+            block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
             i++;
         }
+    p->swap_index = sector_index;
     palloc_free_page(frame_table[spot]->page);
     frame_table[spot] = NULL;
     return spot;
