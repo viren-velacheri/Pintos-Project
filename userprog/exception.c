@@ -161,7 +161,7 @@ page_fault (struct intr_frame *f)
   // Do valid pointer check on fault address so that we exit
   // with status of -1 when executing/reading/writing to an unmapped
   // user virtual address.
-  if(fault_addr == NULL || is_kernel_vaddr(fault_addr))
+  if(fault_addr == NULL || !not_present || is_kernel_vaddr(fault_addr))
   {
      exit(-1);
      //valid_pointer_check(fault_addr);
@@ -170,7 +170,7 @@ page_fault (struct intr_frame *f)
   //if(PHYS_BASE - temp_esp >= max stack size)
 
       //limit is reached
-      printf("Fault addr: %p\n Esp: %p", fault_addr, f->esp);
+     // printf("Fault addr: %p\n Esp: %p", fault_addr, f->esp);
   if(write && fault_addr >= (f->esp - 32)) { 
      if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
       {
@@ -188,6 +188,7 @@ page_fault (struct intr_frame *f)
       new_page->zero_bytes = 0;
       new_page->writable = true;
       new_page->swap_index = -1;
+      new_page->pinning = false;
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
@@ -216,7 +217,8 @@ page_fault (struct intr_frame *f)
       lock_release_check(&frame_lock);
       if(!install_page(new_page->addr, kpage, new_page->writable))
       {
-       palloc_free_page (kpage);
+         free_frame(kpage);
+       //palloc_free_page (kpage);
        exit(-1);  
       }
       //
@@ -296,7 +298,8 @@ page_fault (struct intr_frame *f)
       file_seek (p->resident_file, p->offset);
       if (file_read (p->resident_file, kpage, p->read_bytes) != (int) p->read_bytes)
         {
-          palloc_free_page (kpage);
+           free_frame(kpage);
+          //palloc_free_page (kpage);
           lock_release_check(&file_lock);
           exit(-1);
         }
@@ -307,7 +310,8 @@ page_fault (struct intr_frame *f)
       /* Add the page to the process's address space. */
       if (!install_page (p->addr, kpage, p->writable)) 
         {
-          palloc_free_page (kpage);
+           free_frame(kpage);
+          //palloc_free_page (kpage);
           exit(-1);
         }
      //do loading from file like in load_segment

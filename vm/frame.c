@@ -84,6 +84,19 @@ void *get_frame(enum palloc_flags flag, struct page *p)
     return NULL;
 }
 
+void free_frame(void *page)
+{
+    int i;
+    for(i = 0; i < NUM_FRAMES; i++)
+    {
+        if(frame_table[i]->page == page)
+        {
+            palloc_free_page(page);
+            frame_table[i] = NULL;
+        }
+    }
+}
+
 int random_evict(struct page *p)
 {
     int spot = random_ulong() % NUM_FRAMES;

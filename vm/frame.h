@@ -31,4 +31,5 @@ struct lock frame_lock;
 void init_frame(void);
 int open_frame(void);
 void * get_frame(enum palloc_flags flag, struct page *p);
+void free_frame(void *page);
 #endif

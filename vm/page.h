@@ -23,6 +23,7 @@ struct page
     bool writable;
     uint8_t *upage;
     int frame_spot;
+    bool pinning;
 };
 
 unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
