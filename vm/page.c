@@ -36,9 +36,10 @@ void page_removal(struct hash_elem *e, void *aux)
   if(p->frame_spot != -1) 
   {
   void *pg = frame_table[p->frame_spot]->page;
+  //printf("Page File: %p   Offset: %d", pg, pg_ofs(pg));
   free(frame_table[p->frame_spot]);
   frame_table[p->frame_spot] = NULL;
-  palloc_free_page(pg);
+  //palloc_free_page(pg);
   }
   else if(p->swap_index != -1)
   {

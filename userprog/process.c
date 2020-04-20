@@ -201,9 +201,9 @@ process_exit (void)
     }
 
 
-    // lock_acquire_check(&thread_current()->page_table_lock);
-    // hash_destroy(&thread_current()->page_table, page_removal);
-    // lock_release_check(&thread_current()->page_table_lock);
+    lock_acquire_check(&thread_current()->page_table_lock);
+    hash_destroy(&thread_current()->page_table, page_removal);
+    lock_release_check(&thread_current()->page_table_lock);
     // These two checks are done so that if this current process or thread
     // is holding the file lock and/or the write lock, it will release those
     // so that it isn't holding onto them even when it is dead.
