@@ -93,6 +93,7 @@ void free_frame(void *page)
         if(frame_table[i]->page == page)
         {
             palloc_free_page(page);
+            free(frame_table[i]);
             frame_table[i] = NULL;
         }
     }
@@ -100,6 +101,7 @@ void free_frame(void *page)
 
 int random_evict(struct page *p)
 {
+    lock_acquire(&swap_lock);
     int spot = random_ulong() % NUM_FRAMES;
     while(frame_table[spot] == NULL)
     {
@@ -112,14 +114,16 @@ int random_evict(struct page *p)
     struct block *b = block_get_role(BLOCK_SWAP);
         while(i < 8) 
         {
-            printf("i: %d", i);
+            //printf("i: %d", i);
             block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
             i++;
         }
     p->swap_index = sector_index;
+    p->frame_spot = -1;
     palloc_free_page(frame_table[spot]->page);
     free(frame_table[spot]);
     frame_table[spot] = NULL;
+    lock_release(&swap_lock);
     return spot;
     }
     exit(-1);

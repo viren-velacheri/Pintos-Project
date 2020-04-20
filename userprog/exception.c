@@ -13,6 +13,7 @@
 #include "lib/kernel/bitmap.h"
 #include "devices/block.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -190,6 +191,7 @@ page_fault (struct intr_frame *f)
       new_page->writable = true;
       new_page->swap_index = -1;
       new_page->pinning = false;
+      new_page->frame_spot = -1;
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
@@ -257,6 +259,7 @@ page_fault (struct intr_frame *f)
          }
       }
      lock_release_check(&frame_lock);
+     lock_acquire(&swap_lock);
      i = 0;
      struct block *b = block_get_role(BLOCK_SWAP);
         while(i < 8) 
@@ -266,6 +269,7 @@ page_fault (struct intr_frame *f)
         }
         bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
         p->swap_index = -1;
+      lock_release(&swap_lock);
      //get it from swap
      //set swap_index to NULL
   }

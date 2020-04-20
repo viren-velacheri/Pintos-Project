@@ -176,15 +176,17 @@ process_exit (void)
   struct thread *child;
   int i;
 
+
+ for(i = 0; i < cur->curr_file_index; i++) 
+  {
+    file_close(cur->set_of_files[i]);
+  }
   // Goes through all files opened and closes them.
   // Since just closing all files opened in process,
   // only go up to the current file index and don't
   // have to waste time going through the max number
   // of files (128) when we don't have to.
-  for(i = 0; i < cur->curr_file_index; i++) 
-  {
-    file_close(cur->set_of_files[i]);
-  }
+ 
   //unblock parent waiting for this thread(child) to call exit
   sema_up(&cur->parent_wait);
   //block child until parent calls wait or exit
@@ -198,18 +200,14 @@ process_exit (void)
       sema_up(&child->child_wait);  
     }
 
+
+    // lock_acquire_check(&thread_current()->page_table_lock);
+    // hash_destroy(&thread_current()->page_table, page_removal);
+    // lock_release_check(&thread_current()->page_table_lock);
     // These two checks are done so that if this current process or thread
     // is holding the file lock and/or the write lock, it will release those
     // so that it isn't holding onto them even when it is dead.
-    if(lock_held_by_current_thread(&file_lock))
-    {
-      lock_release(&file_lock);
-    }
-
-    if(lock_held_by_current_thread(&write_lock))
-    {
-      lock_release(&write_lock);
-    }
+  
   
   //Jasper done driving 
 //  lock_acquire_check(&thread_current()->page_table_lock);
@@ -226,9 +224,22 @@ process_exit (void)
 //     }
 //   hash_destroy(&thread_current()->page_table, NULL);
 //   lock_release_check(&thread_current()->page_table_lock);
-    // lock_acquire_check(&thread_current()->page_table_lock);
-    // hash_destroy(&thread_current()->page_table, page_removal);
-    // lock_release_check(&thread_current()->page_table_lock);
+//hash_destroy(&thread_current()->page_table, page_removal);
+
+  
+
+    if(lock_held_by_current_thread(&file_lock))
+    {
+      lock_release(&file_lock);
+    }
+
+    if(lock_held_by_current_thread(&write_lock))
+    {
+      lock_release(&write_lock);
+    }
+
+    
+    
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -620,6 +631,7 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->writable = writable;
       new_page->swap_index = -1;
       new_page->pinning = false;
+      new_page->frame_spot = -1;
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {

@@ -9,6 +9,7 @@
 #include "vm/frame.h"
 #include "lib/kernel/hash.h"
 #include "threads/malloc.h"
+#include "vm/swap.h"
 
 /* Returns a hash value for page p. */
 unsigned
@@ -32,10 +33,18 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 void page_removal(struct hash_elem *e, void *aux) 
 {
   struct page *p = hash_entry (e, struct page, hash_elem);
+  if(p->frame_spot != -1) 
+  {
   void *pg = frame_table[p->frame_spot]->page;
   free(frame_table[p->frame_spot]);
   frame_table[p->frame_spot] = NULL;
   palloc_free_page(pg);
+  }
+  else if(p->swap_index != -1)
+  {
+    bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
+    p->swap_index = -1;
+  }
   free(p);
 }
 
