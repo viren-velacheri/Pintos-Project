@@ -226,6 +226,9 @@ process_exit (void)
 //     }
 //   hash_destroy(&thread_current()->page_table, NULL);
 //   lock_release_check(&thread_current()->page_table_lock);
+    // lock_acquire_check(&thread_current()->page_table_lock);
+    // hash_destroy(&thread_current()->page_table, page_removal);
+    // lock_release_check(&thread_current()->page_table_lock);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

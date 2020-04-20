@@ -110,6 +110,7 @@ struct thread
     struct list_elem elem;              /* List element. */
     struct hash page_table;            /* Supplemental Page Table */
     struct lock page_table_lock;       /* Lock for Page Table */
+    void *esp_copy;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

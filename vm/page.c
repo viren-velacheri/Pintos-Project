@@ -8,6 +8,7 @@
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "lib/kernel/hash.h"
+#include "threads/malloc.h"
 
 /* Returns a hash value for page p. */
 unsigned
@@ -32,6 +33,7 @@ void page_removal(struct hash_elem *e, void *aux)
 {
   struct page *p = hash_entry (e, struct page, hash_elem);
   void *pg = frame_table[p->frame_spot]->page;
+  free(frame_table[p->frame_spot]);
   frame_table[p->frame_spot] = NULL;
   palloc_free_page(pg);
   free(p);

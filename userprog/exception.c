@@ -171,7 +171,8 @@ page_fault (struct intr_frame *f)
 
       //limit is reached
      // printf("Fault addr: %p\n Esp: %p", fault_addr, f->esp);
-  if(write && fault_addr >= (f->esp - 32)) { 
+  if(write && (fault_addr >= (f->esp - 32) || fault_addr >= 
+   (thread_current()->esp_copy) - 32)) { 
      if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
       {
         exit(-1);

@@ -11,6 +11,7 @@
 #include "lib/kernel/bitmap.h"
 #include "devices/block.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 #define NO_SPOT -1
 // void init_frame(void);
@@ -52,14 +53,14 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         {
             return NULL;
         }
-        struct frame f;
-        f.owner_thread = thread_current();
-        f.page = page;
+        struct frame *f = malloc(sizeof(struct frame));
+        f->owner_thread = thread_current();
+        f->page = page;
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
         //f->resident_page = p;
-        frame_table[open_spot] = &f;
+        frame_table[open_spot] = f;
         return page;
     }
     else
@@ -70,14 +71,14 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         {
             return NULL;
         }
-        struct frame f;
-        f.owner_thread = thread_current();
-        f.page = page;
+        struct frame *f = malloc(sizeof(struct frame));
+        f->owner_thread = thread_current();
+        f->page = page;
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
         // f->resident_page = p;
-        frame_table[open_spot] = &f;
+        frame_table[open_spot] = f;
         return page;
         
     }
@@ -111,11 +112,13 @@ int random_evict(struct page *p)
     struct block *b = block_get_role(BLOCK_SWAP);
         while(i < 8) 
         {
+            printf("i: %d", i);
             block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
             i++;
         }
     p->swap_index = sector_index;
     palloc_free_page(frame_table[spot]->page);
+    free(frame_table[spot]);
     frame_table[spot] = NULL;
     return spot;
     }
