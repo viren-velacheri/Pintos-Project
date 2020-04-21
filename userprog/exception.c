@@ -279,7 +279,7 @@ page_fault (struct intr_frame *f)
      if (kpage == NULL)
       {
          lock_release_check(&frame_lock);
-         exit(-1);
+         exit(-10);
       }
      int i; 
      for(i = 0; i < NUM_FRAMES; i++)

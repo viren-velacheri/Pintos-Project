@@ -65,7 +65,7 @@ void *get_frame(enum palloc_flags flag, struct page *p)
     }
     else
     {
-        open_spot = random_evict();
+        open_spot = random_evict(p);
         void *page = palloc_get_page(flag);
         if(page == NULL)
         {
@@ -92,7 +92,7 @@ void free_frame(void *page)
     {
         if(frame_table[i]->page == page)
         {
-            //palloc_free_page(page);
+            palloc_free_page(page);
             free(frame_table[i]);
             frame_table[i] = NULL;
         }
@@ -120,7 +120,7 @@ int random_evict(struct page *p)
         }
     p->swap_index = sector_index;
     p->frame_spot = -1;
-    //palloc_free_page(frame_table[spot]->page);
+    palloc_free_page(frame_table[spot]->page);
     free(frame_table[spot]);
     frame_table[spot] = NULL;
     lock_release(&swap_lock);
