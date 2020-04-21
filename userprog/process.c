@@ -638,6 +638,7 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
         lock_release_check(&thread_current()->page_table_lock);
         return false;
       }
+      //printf("inserted addr: %p\n", new_page->addr);
       lock_release_check(&thread_current()->page_table_lock);
       /* Get a page of memory. */
       //call this in page fault handler instead

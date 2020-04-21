@@ -59,13 +59,13 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
-        //f->resident_page = p;
+        f->resident_page = p;
         frame_table[open_spot] = f;
         return page;
     }
     else
     {
-        open_spot = random_evict(p);
+        open_spot = random_evict();
         void *page = palloc_get_page(flag);
         if(page == NULL)
         {
@@ -77,7 +77,7 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         // f->upage = upage;
         // f->kpage = kpage;
         //f->writeable = writeable;
-        // f->resident_page = p;
+        f->resident_page = p;
         frame_table[open_spot] = f;
         return page;
         
@@ -99,7 +99,7 @@ void free_frame(void *page)
     }
 }
 
-int random_evict(struct page *p)
+int random_evict()//struct page *p)
 {
     lock_acquire(&swap_lock);
     int spot = random_ulong() % NUM_FRAMES;
@@ -107,27 +107,32 @@ int random_evict(struct page *p)
     {
         spot = random_ulong() % NUM_FRAMES;
     }
-    size_t sector_index = bitmap_scan_and_flip(swap_table, 0, 8, false);
-    if(sector_index != BITMAP_ERROR)
-    {
-    size_t i = 0;
-    struct block *b = block_get_role(BLOCK_SWAP);
-        while(i < 8) 
+    struct page *p = frame_table[spot]->resident_page;
+    if(pagedir_is_dirty(thread_current()->pagedir, p->addr)) {
+        size_t sector_index = bitmap_scan_and_flip(swap_table, 0, 8, false);
+        if(sector_index == BITMAP_ERROR)
         {
-            //printf("i: %d", i);
-            block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
-            i++;
+                exit(-1);
+                return -1;
         }
-    p->swap_index = sector_index;
+        size_t i = 0;
+        struct block *b = block_get_role(BLOCK_SWAP);
+            while(i < 8) 
+            {
+                //printf("i: %d", i);
+                block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
+                i++;
+            }
+        //printf("swapped address: %p\n", p->addr);
+        p->swap_index = sector_index;
+    }
     p->frame_spot = -1;
+    pagedir_clear_page(thread_current()->pagedir, p->addr);
     palloc_free_page(frame_table[spot]->page);
     free(frame_table[spot]);
     frame_table[spot] = NULL;
     lock_release(&swap_lock);
     return spot;
-    }
-    exit(-1);
-    return -1;
 } 
 
 

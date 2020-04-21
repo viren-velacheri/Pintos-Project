@@ -162,7 +162,7 @@ page_fault (struct intr_frame *f)
   // Do valid pointer check on fault address so that we exit
   // with status of -1 when executing/reading/writing to an unmapped
   // user virtual address.
-  if(fault_addr == NULL || !not_present || is_kernel_vaddr(fault_addr))
+  if(!not_present) //|| is_kernel_vaddr(fault_addr))
   {
      exit(-1);
      //valid_pointer_check(fault_addr);
@@ -231,15 +231,17 @@ page_fault (struct intr_frame *f)
 
   lock_acquire_check(&thread_current()->page_table_lock); //
   struct page *p = find_page(fault_addr);
-//   printf("upage: %p\n", p->addr);
+   //printf("upage: %p\n", p->addr);
 //   printf("fault addr: %p\n", fault_addr);
   lock_release_check(&thread_current()->page_table_lock);
   if(p == NULL) {
+     //printf("fault addr: %p\n", fault_addr);
      exit(-1);
      //kill(f);
   }
   
   if(p->swap_index != -1) {
+     printf("in swap read\n");
      lock_acquire_check(&frame_lock);
      uint8_t *kpage = get_frame(PAL_USER, p);//palloc_get_page (PAL_USER);
      if (kpage == NULL)
@@ -293,9 +295,6 @@ page_fault (struct intr_frame *f)
          }
       }
      lock_release_check(&frame_lock);
-
-      //adding pages to page table but don't load them
-      //declare page struct, set its elements and then hash_insert
 
       //do this in page fault handler when page is in filesystem
       /* Load this page. */

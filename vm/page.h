@@ -21,7 +21,7 @@ struct page
     uint32_t read_bytes;
     uint32_t zero_bytes;
     bool writable;
-    uint8_t *upage;
+    //uint8_t *upage;
     int frame_spot;
     bool pinning;
 };
