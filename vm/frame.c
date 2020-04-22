@@ -115,10 +115,13 @@ int random_evict()
 {
     lock_acquire(&swap_lock);
     int spot = random_ulong() % NUM_FRAMES;
-    while(frame_table[spot] == NULL)
+    //printf("spot %d", spot);
+    while(spot < 1 || frame_table[spot] == NULL)
     {
         spot = random_ulong() % NUM_FRAMES;
     }
+    //printf("spot %d", spot);
+    spot = 10;
     struct page *p = frame_table[spot]->resident_page;
     //check if this page has been modified
     if(pagedir_is_dirty(thread_current()->pagedir, p->addr)) {

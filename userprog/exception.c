@@ -276,6 +276,14 @@ page_fault (struct intr_frame *f)
       bitmap_set_multiple(swap_table, p->swap_index, SECTORS_PER_PAGE, 0);
       p->swap_index = -1; //no longer on swap
       lock_release(&swap_lock);
+
+      /* Add the page to the process's page directory. */
+      if (!install_page (p->addr, kpage, p->writable)) 
+        {
+          free_frame(kpage);
+          exit(-1);
+        }
+      pagedir_set_dirty(frame_table[i]->owner_thread->pagedir, p->addr, true);
    }  //Jordan done driving
    
    //Jasper drove here
