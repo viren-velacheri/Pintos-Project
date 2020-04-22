@@ -11,6 +11,7 @@
 #include "threads/malloc.h"
 #include "vm/swap.h"
 
+//Viren drove here
 /* Returns a hash value for page p. */
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
@@ -29,18 +30,21 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 
   return a->addr < b->addr;
 }
+//Viren done driving
 
+//Brock drove here
+/*destructor method to free the page table's resources*/
 void page_removal(struct hash_elem *e, void *aux) 
 {
   struct page *p = hash_entry (e, struct page, hash_elem);
+  //free its frame and associated memory if in the frame table
   if(p->frame_spot != -1) 
   {
-  void *pg = frame_table[p->frame_spot]->page;
-  //printf("Page File: %p   Offset: %d", pg, pg_ofs(pg));
-  free(frame_table[p->frame_spot]);
-  frame_table[p->frame_spot] = NULL;
-  //palloc_free_page(pg);
+    void *pg = frame_table[p->frame_spot]->page;
+    free(frame_table[p->frame_spot]);
+    frame_table[p->frame_spot] = NULL;
   }
+  //free the swap sectors for this page if on swap
   else if(p->swap_index != -1)
   {
     bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
@@ -49,6 +53,9 @@ void page_removal(struct hash_elem *e, void *aux)
   free(p);
 }
 
+/*Method that returns the page associated with fault_addr if it is
+  in the page table, otherwise returns NUL
+*/
 struct page *find_page(void *fault_addr){
   struct page p;
   struct hash_elem *e;
@@ -58,3 +65,4 @@ struct page *find_page(void *fault_addr){
     return NULL;
   return hash_entry(e, struct page, hash_elem);
 }
+//Brock done driving

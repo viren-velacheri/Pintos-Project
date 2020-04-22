@@ -14,10 +14,10 @@
 #include "threads/malloc.h"
 
 #define NO_SPOT -1
-// void init_frame(void);
-// int open_frame(void);
-// void * frame_available(void);
 
+//Jordan drove here
+
+//initializes the frame lock as well as the elements of the frame table
 void init_frame(void)
 {
     lock_init(&frame_lock);
@@ -26,9 +26,9 @@ void init_frame(void)
     {
         frame_table[i] = NULL;
     }
-
 }
 
+//method that returns the index of an open frame in the frame table
 int open_frame(void)
 {
     int i;
@@ -41,50 +41,56 @@ int open_frame(void)
     }
     return NO_SPOT;
 }
+//Jordan done driving
 
+//Viren drove here
+/*Method that allocates a free frame and calls the eviction method
+  if all frames are currently allocated
+  Returns the physaddr allocated
+  */
 void *get_frame(enum palloc_flags flag, struct page *p)
 {
     int open_spot = open_frame();
-
+    //there is a free frame
     if(open_spot != NO_SPOT)
     {
+        //get a physical address for this page
         void *page = palloc_get_page(flag);
         if(page == NULL)
         {
             return NULL;
         }
+        //create a new frame struct and initialize its members
         struct frame *f = malloc(sizeof(struct frame));
         f->owner_thread = thread_current();
         f->page = page;
-        // f->upage = upage;
-        // f->kpage = kpage;
-        //f->writeable = writeable;
         f->resident_page = p;
         frame_table[open_spot] = f;
         return page;
     }
-    else
+    else //there is no free frame
     {
         open_spot = random_evict();
+        //get a physical address for this page
         void *page = palloc_get_page(flag);
         if(page == NULL)
         {
             return NULL;
         }
+        //create a new frame struct and initialize its members
         struct frame *f = malloc(sizeof(struct frame));
         f->owner_thread = thread_current();
         f->page = page;
-        // f->upage = upage;
-        // f->kpage = kpage;
-        //f->writeable = writeable;
         f->resident_page = p;
         frame_table[open_spot] = f;
         return page;
-        
     }
     return NULL;
 }
+//Viren done driving
 
+//Jasper drove here
+//method to free a frame and all its associated allocated memory
 void free_frame(void *page)
 {
     int i;
@@ -98,8 +104,14 @@ void free_frame(void *page)
         }
     }
 }
+//Jasper done driving
 
-int random_evict()//struct page *p)
+//Brock drove here
+/*method that evicts a random frame and writes it to swap if it has been
+  modified
+  Returns the index of the newly freed frame
+*/
+int random_evict()
 {
     lock_acquire(&swap_lock);
     int spot = random_ulong() % NUM_FRAMES;
@@ -108,8 +120,11 @@ int random_evict()//struct page *p)
         spot = random_ulong() % NUM_FRAMES;
     }
     struct page *p = frame_table[spot]->resident_page;
+    //check if this page has been modified
     if(pagedir_is_dirty(thread_current()->pagedir, p->addr)) {
-        size_t sector_index = bitmap_scan_and_flip(swap_table, 0, 8, false);
+        //get a free sector of swap
+        size_t sector_index = bitmap_scan_and_flip(swap_table, 0, 
+            SECTORS_PER_PAGE, false);
         if(sector_index == BITMAP_ERROR)
         {
                 exit(-1);
@@ -117,23 +132,25 @@ int random_evict()//struct page *p)
         }
         size_t i = 0;
         struct block *b = block_get_role(BLOCK_SWAP);
-            while(i < 8) 
-            {
-                //printf("i: %d", i);
-                block_write(b, sector_index + i, frame_table[spot]->page + i * 512);
-                i++;
-            }
-        //printf("swapped address: %p\n", p->addr);
-        p->swap_index = sector_index;
+        while(i < SECTORS_PER_PAGE) 
+        {
+            block_write(b, sector_index + i, frame_table[spot]->page + 
+              i * BLOCK_SECTOR_SIZE);
+            i++;
+        }
+        p->swap_index = sector_index; //set the evicted page's swap index
     }
     p->frame_spot = -1;
+    //remove pages mapping to physical memory
     pagedir_clear_page(thread_current()->pagedir, p->addr);
+    //free the frame and its allocated memory
     palloc_free_page(frame_table[spot]->page);
     free(frame_table[spot]);
     frame_table[spot] = NULL;
     lock_release(&swap_lock);
     return spot;
 } 
+//Brock done driving
 
 
 

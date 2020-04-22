@@ -15,17 +15,14 @@
 #include "filesys/file.h"
 
 #define NUM_FRAMES 367 // Number of pages in user pool.
-
+#define SECTORS_PER_PAGE 8 //sectors are 512 bytes, pages are 4096
 struct frame {
     struct thread *owner_thread; // thread that owns the page in this frame
-	//void *upage;
-    //void *kpage;
-    void *page;
-    struct page *resident_page;
-    bool writeable;
+    void *page; //physical address of the page in this frame
+    struct page *resident_page; //page residing in this frame
 };
 
-struct frame *frame_table[NUM_FRAMES]; 
+struct frame *frame_table[NUM_FRAMES]; //frame table
 struct lock frame_lock;
 
 void init_frame(void);

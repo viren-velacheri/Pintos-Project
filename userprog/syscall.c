@@ -98,7 +98,8 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   //Jordan driving now
-  thread_current()->esp_copy = f->esp;
+  //save a copy of esp in the thread struct
+  thread_current()->esp_copy = f->esp; 
   // A temporary stack pointer so actual
   // stack pointer isn't modified directly.
   char *temp_esp = f->esp;

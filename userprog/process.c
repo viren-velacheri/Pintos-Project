@@ -200,34 +200,14 @@ process_exit (void)
       sema_up(&child->child_wait);  
     }
 
-
+    //Page reclamation
     lock_acquire_check(&thread_current()->page_table_lock);
     hash_destroy(&thread_current()->page_table, page_removal);
     lock_release_check(&thread_current()->page_table_lock);
+
     // These two checks are done so that if this current process or thread
     // is holding the file lock and/or the write lock, it will release those
     // so that it isn't holding onto them even when it is dead.
-  
-  
-  //Jasper done driving 
-//  lock_acquire_check(&thread_current()->page_table_lock);
-//    struct hash_iterator it;
-//   hash_first (&it, &thread_current()->page_table);
-//   while (hash_next (&it))
-//     {
-//       lock_acquire_check(&frame_lock);
-//       struct page *p = hash_entry (hash_cur (&it), struct page, hash_elem);
-//       palloc_free_page(frame_table[p->frame_spot]->page);
-//       frame_table[p->frame_spot] = NULL;
-//       free(p);
-//       lock_release_check(&frame_lock);
-//     }
-//   hash_destroy(&thread_current()->page_table, NULL);
-//   lock_release_check(&thread_current()->page_table_lock);
-//hash_destroy(&thread_current()->page_table, page_removal);
-
-  
-
     if(lock_held_by_current_thread(&file_lock))
     {
       lock_release(&file_lock);
@@ -236,10 +216,9 @@ process_exit (void)
     if(lock_held_by_current_thread(&write_lock))
     {
       lock_release(&write_lock);
-    }
-
-    
-    
+    } 
+  
+    //Jasper done driving 
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -552,6 +531,8 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
  
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
+
+//this method is unused
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
@@ -600,6 +581,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
+//Brock driving now
+
+/* This method creates pages for this process and saves its
+   executable file as well as the number of read_bytes and
+   zero_bytes for that page to be loaded upon its first
+   reference.
+
+   Return true if successful, false if a memory allocation error
+   or disk read error occurs. */
 static bool
 lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
@@ -617,12 +607,14 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      //create a new page struct
       struct page *new_page = malloc(sizeof(struct page));
       if(new_page == NULL)
       {
         return false;
       }
       
+      //initialize the members of the page struct
       new_page->addr = upage;
       new_page->resident_file = file;
       new_page->offset = ofs;
@@ -632,38 +624,16 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->swap_index = -1;
       new_page->pinning = false;
       new_page->frame_spot = -1;
+
+      //insert this new page into the supplemental page table
       lock_acquire_check(&thread_current()->page_table_lock);
-      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
+      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem)
+         != NULL)
       {
         lock_release_check(&thread_current()->page_table_lock);
         return false;
       }
-      //printf("inserted addr: %p\n", new_page->addr);
       lock_release_check(&thread_current()->page_table_lock);
-      /* Get a page of memory. */
-      //call this in page fault handler instead
-      // uint8_t *kpage = get_frame(PAL_USER);//palloc_get_page (PAL_USER);
-      // if (kpage == NULL)
-      //   return false;
-
-      // //adding pages to page table but don't load them
-      // //declare page struct, set its elements and then hash_insert
-
-      // //do this in page fault handler when page is in filesystem
-      // /* Load this page. */
-      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-      //   {
-      //     palloc_free_page (kpage);
-      //     return false; 
-      //   }
-      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
- 
-      // /* Add the page to the process's address space. */
-      // if (!install_page (upage, kpage, writable)) 
-      //   {
-      //     palloc_free_page (kpage);
-      //     return false; 
-      //   }
  
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -673,9 +643,9 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
     }
   
   return true;
-
-
 }
+
+//Brock done driving
 
 // Jordan drove here
 /* A helper method that checks whether stack pointer is valid or not.
@@ -758,10 +728,6 @@ setup_stack (void **esp, const char* file_name)
         while(j >= 0) 
         {
           myesp -= (strlen(temp_args[j]) + 1);
-          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          // {
-          //   return false;
-          // }
           byte_size += (strlen(temp_args[j]) + 1);
           memcpy(myesp, temp_args[j], strlen(temp_args[j]) + 1);
           argv[j] = myesp;
@@ -773,11 +739,6 @@ setup_stack (void **esp, const char* file_name)
         if(j) 
         {
           myesp -= j;
-          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          // {
-          //   return false;
-          // }
-      
           memcpy(myesp, &argv[argc], j);
         }
 
@@ -788,11 +749,6 @@ setup_stack (void **esp, const char* file_name)
         while(k >= 0) 
         {
           myesp -= sizeof(char*);
-          // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-          // {
-          //   return false;
-          // }
-      
           memcpy(myesp, &argv[k], sizeof(char*));
           k--;
         }
@@ -800,28 +756,14 @@ setup_stack (void **esp, const char* file_name)
         token = myesp;
       
         myesp -= sizeof(char **);
-        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        // {
-        //     return false;
-        // }
-      
         memcpy(myesp, &token, sizeof(char **));
         myesp -= sizeof(int);
-        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        // {
-        //     return false;
-        // }
-        
+
         //Jordan done driving
         //Brock driving now
       
         memcpy(myesp, &argc, sizeof(int));
         myesp -= sizeof(void*);
-        // if(!valid_stack_pointer(myesp, argv, temp_args, fn_copy, kpage)) 
-        // {
-        //     return false;
-        // } 
-        // 
       
         memcpy(myesp, &argv[argc], sizeof(void *));
       
@@ -833,7 +775,7 @@ setup_stack (void **esp, const char* file_name)
         //Brock done driving
         }
       else
-        free_frame(kpage);//palloc_free_page (kpage);
+        free_frame(kpage);
       }
   
   return success;
@@ -856,21 +798,6 @@ install_page (void *upage, void *kpage, bool writable)
  
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-     //return (pagedir_get_page (t->pagedir, upage) == NULL && frame_available(t));
-  // if(pagedir_get_page (t->pagedir, upage) != NULL)
-  // {
-  //   return false;
-  // }
-  // if(!pagedir_set_page (t->pagedir, upage, kpage, writable))
-  // {
-  //   return false;
-  // }
-
-  // lock_acquire(&frame_lock);
-  // //bool temp = frame_available(t, upage, kpage, writable);
-  // lock_release(&frame_lock);
-  // return temp;
-  
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }

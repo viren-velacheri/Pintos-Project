@@ -160,29 +160,29 @@ page_fault (struct intr_frame *f)
 
   // Viren Drove here
   // Do valid pointer check on fault address so that we exit
-  // with status of -1 when executing/reading/writing to an unmapped
-  // user virtual address.
-  if(!not_present) //|| is_kernel_vaddr(fault_addr))
+  // with status of -1 when writing to a read only page
+  if(!not_present) 
   {
      exit(-1);
-     //valid_pointer_check(fault_addr);
   }
-  //char *temp_esp = f->esp;
-  //if(PHYS_BASE - temp_esp >= max stack size)
-
-      //limit is reached
-     // printf("Fault addr: %p\n Esp: %p", fault_addr, f->esp);
+  
+  /* Check if the faulting address appears to be trying to 
+   grow the stack */
   if(write && (fault_addr >= (f->esp - 32) || fault_addr >= 
    (thread_current()->esp_copy) - 32)) { 
+     //check that the stack size of 8MB has not been reached
      if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
       {
         exit(-1);
       }
-     struct page *new_page = malloc(sizeof(struct page));
+
+      //create a new page struct for the stack
+      struct page *new_page = malloc(sizeof(struct page));
       if(new_page == NULL)
       {
         exit(-1);
       }
+      //initialize the members of the new page
       new_page->addr = pg_round_down(fault_addr);
       new_page->resident_file = NULL;
       new_page->offset = NULL;
@@ -192,6 +192,7 @@ page_fault (struct intr_frame *f)
       new_page->swap_index = -1;
       new_page->pinning = false;
       new_page->frame_spot = -1;
+      //insert the new page into the supplemental page table
       lock_acquire_check(&thread_current()->page_table_lock);
       if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
       {
@@ -199,6 +200,8 @@ page_fault (struct intr_frame *f)
         exit(-1);
       }
       lock_release_check(&thread_current()->page_table_lock); 
+
+      //allocate a frame for this new page
       lock_acquire_check(&frame_lock);
       void *kpage = get_frame(PAL_USER, new_page);
       if(kpage == NULL)
@@ -207,6 +210,7 @@ page_fault (struct intr_frame *f)
          exit(-1);
       }
       int i;
+      //set the new page's frame index to the allocated frame
       for(i = 0; i < NUM_FRAMES; i++)
       {
          if(frame_table[i]!=NULL) {
@@ -218,71 +222,35 @@ page_fault (struct intr_frame *f)
          }
       }
       lock_release_check(&frame_lock);
+
+      //install this new page mapping in the page directory
       if(!install_page(new_page->addr, kpage, new_page->writable))
       {
          free_frame(kpage);
-       //palloc_free_page (kpage);
-       exit(-1);  
+         exit(-1);  
       }
-      //
-     //grow the stack
-
-  } else { 
-
-  lock_acquire_check(&thread_current()->page_table_lock); //
-  struct page *p = find_page(fault_addr);
-   //printf("upage: %p\n", p->addr);
-//   printf("fault addr: %p\n", fault_addr);
-  lock_release_check(&thread_current()->page_table_lock);
-  if(p == NULL) {
-     //printf("fault addr: %p\n", fault_addr);
+      //Viren done driving
+      //Jordan drove here
+  } 
+  else { //fault_addr is not attempting to grow the stack
+   //find the page associated with the faulting address
+   lock_acquire_check(&thread_current()->page_table_lock);
+   struct page *p = find_page(fault_addr);
+   lock_release_check(&thread_current()->page_table_lock);
+   if(p == NULL) { //page not found
      exit(-1);
-     //kill(f);
-  }
-  
-  if(p->swap_index != -1) {
-     printf("in swap read\n");
+   }
+   //if the page being accessed is on swap
+   if(p->swap_index != -1) {
+     //allocate a frame for this page
      lock_acquire_check(&frame_lock);
-     uint8_t *kpage = get_frame(PAL_USER, p);//palloc_get_page (PAL_USER);
+     uint8_t *kpage = get_frame(PAL_USER, p);
      if (kpage == NULL)
       {
          lock_release_check(&frame_lock);
          exit(-1);
       }
-      int i; 
-     for(i = 0; i < NUM_FRAMES; i++)
-      {
-         if(frame_table[i] != NULL) {
-         if(frame_table[i]->page == kpage)
-         {
-            p->frame_spot = i;
-            break;
-         }
-         }
-      }
-     lock_release_check(&frame_lock);
-     lock_acquire(&swap_lock);
-     i = 0;
-     struct block *b = block_get_role(BLOCK_SWAP);
-        while(i < 8) 
-        {
-            block_read(b, p->swap_index + i, kpage + i * 512);
-            i++;
-        }
-        bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
-        p->swap_index = -1;
-      lock_release(&swap_lock);
-     //get it from swap
-     //set swap_index to NULL
-  }
-  else {
-     lock_acquire_check(&frame_lock);
-     uint8_t *kpage = get_frame(PAL_USER, p);//palloc_get_page (PAL_USER);
-     if (kpage == NULL)
-      {
-         lock_release_check(&frame_lock);
-         exit(-10);
-      }
+     //set the page's frame index to the allocated frame
      int i; 
      for(i = 0; i < NUM_FRAMES; i++)
       {
@@ -295,46 +263,66 @@ page_fault (struct intr_frame *f)
          }
       }
      lock_release_check(&frame_lock);
+     //read from swap to the page's allocated physical address
+     lock_acquire(&swap_lock);
+     i = 0;
+     struct block *b = block_get_role(BLOCK_SWAP);
+        while(i < SECTORS_PER_PAGE) 
+        {
+            block_read(b, p->swap_index + i, kpage + i * BLOCK_SECTOR_SIZE);
+            i++;
+        }
+      //set bits of swap table at this index to 0(not used)
+      bitmap_set_multiple(swap_table, p->swap_index, SECTORS_PER_PAGE, 0);
+      p->swap_index = -1; //no longer on swap
+      lock_release(&swap_lock);
+   }  //Jordan done driving
+   
+   //Jasper drove here
+   else { //the page must be read from the filesystem
+     //allocate a frame for this page
+     lock_acquire_check(&frame_lock);
+     uint8_t *kpage = get_frame(PAL_USER, p);
+     if (kpage == NULL)
+      {
+         lock_release_check(&frame_lock);
+         exit(-10);
+      }
+     lock_release_check(&frame_lock);
+     //set the page's frame index to the allocated frame
+     int i; 
+     for(i = 0; i < NUM_FRAMES; i++)
+      {
+         if(frame_table[i] != NULL) {
+         if(frame_table[i]->page == kpage)
+         {
+            p->frame_spot = i;
+            break;
+         }
+         }
+      }
+      lock_release_check(&frame_lock);
 
-      //do this in page fault handler when page is in filesystem
       /* Load this page. */
       lock_acquire_check(&file_lock);
       file_seek (p->resident_file, p->offset);
       if (file_read (p->resident_file, kpage, p->read_bytes) != (int) p->read_bytes)
         {
-           free_frame(kpage);
-          //palloc_free_page (kpage);
+          free_frame(kpage);
           lock_release_check(&file_lock);
           exit(-1);
         }
       lock_release_check(&file_lock);
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
-      
-      /* Add the page to the process's address space. */
+      /* Add the page to the process's page directory. */
       if (!install_page (p->addr, kpage, p->writable)) 
         {
-           free_frame(kpage);
-          //palloc_free_page (kpage);
+          free_frame(kpage);
           exit(-1);
         }
-     //do loading from file like in load_segment
-     //install page here?
+   }
+   //Jasper done driving
   }
-  }
-
-
-//   /* To implement virtual memory, delete the rest of the function
-//      body, and replace it with code that brings in the page to
-//      which fault_addr refers. */
-//   printf ("Page fault at %p: %s error %s page in %s context.\n",
-//           fault_addr,
-//           not_present ? "not present" : "rights violation",
-//           write ? "writing" : "reading",
-//           user ? "user" : "kernel");
-
-//   printf("There is no crying in Pintos!\n");
-
-//   kill (f);
 }
 
