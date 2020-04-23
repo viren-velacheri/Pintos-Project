@@ -129,6 +129,8 @@ thread_start (void)
   sema_down (&idle_started);
 }
 
+/* A helper method used to acquiring lock only if lock isn't already being
+held. This prevents the assertion fail that would otherwise arise. */
 void lock_acquire_check(struct lock *lock) 
 {
   if(!lock_held_by_current_thread(lock))
@@ -137,6 +139,8 @@ void lock_acquire_check(struct lock *lock)
   }
 }
 
+/* A helper method used to releasing lock only if lock wasn't already
+released. This prevents the assertion fail that would otherwise arise. */
 void lock_release_check(struct lock *lock) 
 {
   if(lock_held_by_current_thread(lock))

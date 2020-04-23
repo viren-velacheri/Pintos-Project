@@ -24,10 +24,9 @@ the given address/pointer is valid or not.
 Exits with -1 status if not valid. */
 void valid_pointer_check(void * ptr) 
 {
-  // If the pointer is null or it is a kernel and not user address 
-  // or if address is unmapped, exit with -1 error status.
-  // Otherwise, nothing happens.
-  if(ptr == NULL || is_kernel_vaddr (ptr)) //|| pagedir_get_page(thread_current()->pagedir, ptr) == NULL
+  // If the pointer is null or it is a kernel virtual address  
+  // exit with -1 error status. Otherwise, nothing happens.
+  if(ptr == NULL || is_kernel_vaddr (ptr))
     {
       exit(-1);
     }
@@ -48,7 +47,7 @@ void fd_exist_check(struct thread *t, int fd, int low_limit)
 
 /* Used to check if file exists or not. Used in case where 
 fd is valid but file was closed earlier. Only parameter is the respective
-file to check. If it is NULL, exit with -1 error status. */ // Yeah I think i have the same settings but not sure. Oh whoa We are failing less
+file to check. If it is NULL, exit with -1 error status. */
 void file_exist_check(struct file *f) 
 {
   if(f == NULL)
@@ -80,10 +79,7 @@ void exit(int status)
   thread_current()->exit_status = status;
   
   //close this thread's executable (allows writes)
-  if(!lock_held_by_current_thread(&file_lock))
-  {
-    lock_acquire(&file_lock);
-  }
+  lock_acquire_check(&file_lock);
   file_close(thread_current()->executable);
   lock_release_check(&file_lock);
 

@@ -622,7 +622,6 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
       new_page->zero_bytes = page_zero_bytes;
       new_page->writable = writable;
       new_page->swap_index = -1;
-      new_page->pinning = false;
       new_page->frame_spot = -1;
 
       //insert this new page into the supplemental page table
@@ -651,7 +650,7 @@ lazy_loading (struct file *file, off_t ofs, uint8_t *upage,
 /* A helper method that checks whether stack pointer is valid or not.
 Returns 0 if not and frees the pages, 1 if it is. Parameters are the 
 temporary stack pointer, actual args, temporary arguments, 
-and the kpage or zeroed page. */
+and the kpage or zeroed page. NOTE: Method unused now. */
 int valid_stack_pointer(char* myesp, char** argv, char** temp_args, 
 char* fn_copy, uint8_t kpage)
 {
@@ -679,7 +678,7 @@ setup_stack (void **esp, const char* file_name)
   uint8_t *kpage;
   bool success = false;
   
-  kpage = get_frame(PAL_USER | PAL_ZERO, NULL);//palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = get_frame(PAL_USER | PAL_ZERO, NULL);
   if (kpage != NULL) 
     {
       

@@ -9,8 +9,8 @@
 #include "lib/kernel/bitmap.h"
 #include "threads/synch.h"
 
-struct bitmap *swap_table;
-void swap_init(void);
-struct lock swap_lock;
+struct bitmap *swap_table; // Swap table struct
+void swap_init(void); // initializes swap table.
+struct lock swap_lock; // lock used for swap table accesses.
 
 #endif

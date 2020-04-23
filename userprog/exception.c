@@ -15,6 +15,10 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 
+// Range faulting address has to be within stack pointer to know if 
+// it is trying to grow the stack.
+#define STACK_RANGE 32 
+#define STACK_SIZE 8 * (1 << 20) // This is the max size of stack.
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -168,10 +172,10 @@ page_fault (struct intr_frame *f)
   
   /* Check if the faulting address appears to be trying to 
    grow the stack */
-  if(write && (fault_addr >= (f->esp - 32) || fault_addr >= 
-   (thread_current()->esp_copy) - 32)) { 
+  if(write && (fault_addr >= (f->esp - STACK_RANGE) || fault_addr >= 
+   (thread_current()->esp_copy) - STACK_RANGE)) { 
      //check that the stack size of 8MB has not been reached
-     if(PHYS_BASE - pg_round_down(fault_addr) > 8 * (1 << 20))
+     if(PHYS_BASE - pg_round_down(fault_addr) > STACK_SIZE)
       {
         exit(-1);
       }
@@ -190,11 +194,11 @@ page_fault (struct intr_frame *f)
       new_page->zero_bytes = 0;
       new_page->writable = true;
       new_page->swap_index = -1;
-      new_page->pinning = false;
       new_page->frame_spot = -1;
       //insert the new page into the supplemental page table
       lock_acquire_check(&thread_current()->page_table_lock);
-      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) != NULL)
+      if(hash_insert(&thread_current()->page_table, &new_page->hash_elem) 
+      != NULL)
       {
         lock_release_check(&thread_current()->page_table_lock);
         exit(-1);
@@ -267,6 +271,10 @@ page_fault (struct intr_frame *f)
      lock_acquire(&swap_lock);
      i = 0;
      struct block *b = block_get_role(BLOCK_SWAP);
+       if(b == NULL)
+       {
+          exit(-1);
+       }
         while(i < SECTORS_PER_PAGE) 
         {
             block_read(b, p->swap_index + i, kpage + i * BLOCK_SECTOR_SIZE);
@@ -294,7 +302,7 @@ page_fault (struct intr_frame *f)
      if (kpage == NULL)
       {
          lock_release_check(&frame_lock);
-         exit(-10);
+         exit(-1);
       }
      lock_release_check(&frame_lock);
      //set the page's frame index to the allocated frame
@@ -314,7 +322,8 @@ page_fault (struct intr_frame *f)
       /* Load this page. */
       lock_acquire_check(&file_lock);
       file_seek (p->resident_file, p->offset);
-      if (file_read (p->resident_file, kpage, p->read_bytes) != (int) p->read_bytes)
+      if (file_read (p->resident_file, kpage, p->read_bytes) !=
+       (int) p->read_bytes)
         {
           free_frame(kpage);
           lock_release_check(&file_lock);

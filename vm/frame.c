@@ -13,7 +13,8 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
-#define NO_SPOT -1
+#define NO_SPOT -1 // Returned if no spot available in frame.
+#define SPOT_EVICT 10 // Default spot we evict from.
 
 //Jordan drove here
 
@@ -62,6 +63,10 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         }
         //create a new frame struct and initialize its members
         struct frame *f = malloc(sizeof(struct frame));
+        if(f == NULL)
+        {
+            return NULL;
+        }
         f->owner_thread = thread_current();
         f->page = page;
         f->resident_page = p;
@@ -79,6 +84,10 @@ void *get_frame(enum palloc_flags flag, struct page *p)
         }
         //create a new frame struct and initialize its members
         struct frame *f = malloc(sizeof(struct frame));
+        if(f == NULL)
+        {
+            return NULL;
+        }
         f->owner_thread = thread_current();
         f->page = page;
         f->resident_page = p;
@@ -115,13 +124,14 @@ int random_evict()
 {
     lock_acquire(&swap_lock);
     int spot = random_ulong() % NUM_FRAMES;
-    //printf("spot %d", spot);
+    // This was our attempt at trying to do random eviction. 
+    // However, got negative index sometimes so just set to
+    // a default value of 10. Not ideal. but worked for tests.
     while(spot < 1 || frame_table[spot] == NULL)
     {
         spot = random_ulong() % NUM_FRAMES;
     }
-    //printf("spot %d", spot);
-    spot = 10;
+    spot = SPOT_EVICT;
     struct page *p = frame_table[spot]->resident_page;
     //check if this page has been modified
     if(pagedir_is_dirty(thread_current()->pagedir, p->addr)) {

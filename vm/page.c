@@ -11,6 +11,8 @@
 #include "threads/malloc.h"
 #include "vm/swap.h"
 
+#define NOT_AVAIL -1 // used when spot in frame or swap isn't there.
+#define NUM_SECTORS_IN_PAGE 8// number of sectors in page based off size.
 //Viren drove here
 /* Returns a hash value for page p. */
 unsigned
@@ -38,17 +40,17 @@ void page_removal(struct hash_elem *e, void *aux)
 {
   struct page *p = hash_entry (e, struct page, hash_elem);
   //free its frame and associated memory if in the frame table
-  if(p->frame_spot != -1) 
+  if(p->frame_spot != NOT_AVAIL) 
   {
     void *pg = frame_table[p->frame_spot]->page;
     free(frame_table[p->frame_spot]);
     frame_table[p->frame_spot] = NULL;
   }
   //free the swap sectors for this page if on swap
-  else if(p->swap_index != -1)
+  else if(p->swap_index != NOT_AVAIL)
   {
-    bitmap_set_multiple(swap_table, p->swap_index, 8, 0);
-    p->swap_index = -1;
+    bitmap_set_multiple(swap_table, p->swap_index, NUM_SECTORS_IN_PAGE, 0);
+    p->swap_index = NOT_AVAIL;
   }
   free(p);
 }

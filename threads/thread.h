@@ -128,7 +128,9 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
+/*Helper method that checks that lock isn't already held before acquiring. */
 void lock_acquire_check(struct lock *lock);
+/*Helper method that checks that lock wasn't already released prior. */
 void lock_release_check(struct lock *lock);
 
 
