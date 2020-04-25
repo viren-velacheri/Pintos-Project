@@ -14,10 +14,11 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
+    //block_sector_t start;               /* First data sector. */
+    //off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    //uint32_t unused[125];               /* Not used. */
+    block_sector_t blocks[127];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -85,21 +86,26 @@ inode_create (block_sector_t sector, off_t length)
   if (disk_inode != NULL)
     {
       size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
+      //disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
+      off_t temp = length;
+      while(temp > 0)
+      {
+        
+      }
+      // if (free_map_allocate (sectors, &disk_inode->start)) 
+      //   {
+      //     block_write (fs_device, sector, disk_inode);
+      //     if (sectors > 0) 
+      //       {
+      //         static char zeros[BLOCK_SECTOR_SIZE];
+      //         size_t i;
               
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
+      //         for (i = 0; i < sectors; i++) 
+      //           block_write (fs_device, disk_inode->start + i, zeros);
+      //       }
+      //     success = true; 
+      //   } 
       free (disk_inode);
     }
   return success;
