@@ -89,10 +89,48 @@ inode_create (block_sector_t sector, off_t length)
       //disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       off_t temp = length;
-      while(temp > 0)
+      int i = 0;
+      while(sectors > 0)
       {
-        
+        if (free_map_allocate (1, &disk_inode->blocks[i]))
+        {
+          if(sectors <= 128)
+          {
+            int j;
+            for(j = 0; j < sectors; j++)
+            {
+            block_sector_t block;
+            free_map_allocate(1, &block);
+            block_write(fs_device, disk_inode->blocks[i] + j * 4, block);
+            }
+            while(j < 128)
+            {
+              block_write(fs_device, disk_inode->blocks[i] + j * 4, 0);
+              j++;
+            }
+            sectors -= sectors;
+          }
+          else 
+          {
+            int k;
+            for(k = 0; k < 128; k++)
+            {
+            block_sector_t block;
+            free_map_allocate(1, &block);
+            block_write(fs_device, disk_inode->blocks[i] + k * 4, block);
+            }
+            sectors -= 128;
+          }
+          success = true;
+        }
+        else 
+        {
+          success = false;
+          sectors = 0;   
+          // Might have to free the already allocated sectors but not sure.
+        }
       }
+
       // if (free_map_allocate (sectors, &disk_inode->start)) 
       //   {
       //     block_write (fs_device, sector, disk_inode);
@@ -183,8 +221,30 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+          int i;
+          struct inode_disk temp = inode->data;
+          for(i = 0; i < 127; i++)
+          {
+            block_sector_t block = temp->blocks[i];
+            int j = 0;
+            void *buffer = malloc(512);
+            block_read(fs_device, block, buffer);
+            while(j < 128)
+            {
+              block_sector_t temp = *buffer;
+              if(temp == NULL)
+              {
+                i = 127;
+                break;
+              }
+              free_map_release(temp, 1);
+              buffer += 4;
+              j++;
+            }
+            free_map_release(block, 1);
+          }
+          // free_map_release (inode->data.start,
+          //                   bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
