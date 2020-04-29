@@ -54,7 +54,11 @@ filesys_create (const char *name, off_t initial_size)
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
-
+  //printf("file success: %d\n", success);
+  // if(success == 0) {
+  //   printf("dir: %d\n", dir != NULL);
+  //   printf("fmalloc: %d\n", free_map_allocate(1, &inode_sector));
+  // }
   return success;
 }
 

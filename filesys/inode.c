@@ -146,34 +146,50 @@ inode_create (block_sector_t sector, off_t length)
       {
         if (free_map_allocate (1, &disk_inode->indirect[d]))
         {
+          block_sector_t indirect_sectors[128];
           if(sectors <= 128)
           {
             int j;
             for(j = 0; j < sectors; j++)
             {
-            block_sector_t block;
-            free_map_allocate(1, &block);
-            block_write(fs_device, disk_inode->indirect[d] + j * 4, &block);
-            block_write(fs_device, block, zeros);
+              block_sector_t block;
+              if(free_map_allocate(1, &block)) {
+                indirect_sectors[j] = block;
+                //block_write(fs_device, disk_inode->indirect[d] + j * 4, &block);
+                block_write(fs_device, block, zeros);
+              }
+              else {
+                success = false;
+                break;
+              }
             }
             while(j < 128)
             {
-              block_write(fs_device, disk_inode->indirect[d] + j * 4, 0);
+              indirect_sectors[j] = NULL;
+              //block_write(fs_device, disk_inode->indirect[d] + j * 4, 0);
               j++;
             }
             sectors -= sectors;
+            block_write(fs_device, disk_inode->indirect[d], indirect_sectors);
           }
           else 
           {
             int k;
             for(k = 0; k < 128; k++)
             {
-            block_sector_t block;
-            free_map_allocate(1, &block);
-            block_write(fs_device, disk_inode->indirect[d] + k * 4, &block);
-            block_write(fs_device, block, zeros);
+              block_sector_t block;
+              if(free_map_allocate(1, &block)) {
+                indirect_sectors[k] = block;
+                //block_write(fs_device, disk_inode->indirect[d] + k * 4, &block);
+                block_write(fs_device, block, zeros);
+              }
+              else {
+                success = false;
+                break;
+              }
             }
             sectors -= 128;
+            block_write(fs_device, disk_inode->indirect[d], indirect_sectors);
           }
           success = true;
           d++;
@@ -191,28 +207,46 @@ inode_create (block_sector_t sector, off_t length)
       {
         if (free_map_allocate(1, &disk_inode->double_indirect))
         {
+          block_sector_t indirect_sectors[128];
           int c = 0;
           while (sectors > 0)
           {
             block_sector_t block;
-            free_map_allocate(1, &block);
-            block_write(fs_device, disk_inode->double_indirect + c * 4, &block);
-            int l;
-            for(l = 0; l < 128; l++)
+            if(free_map_allocate(1, &block)) 
             {
-
-              block_sector_t block2;
-              free_map_allocate(1, &block2);
-              block_write(fs_device, block + l * 4, &block2);
-              block_write(fs_device, block2, zeros);
-              sectors--;
-              if(sectors <= 0)
+              indirect_sectors[c] = block;
+              //block_write(fs_device, disk_inode->double_indirect + c * 4, &block);
+              int l;
+              block_sector_t double_indirect_sectors[128];
+              for(l = 0; l < 128; l++)
               {
-                break;
+                block_sector_t block2;
+                if(free_map_allocate(1, &block2))
+                {
+                  double_indirect_sectors[l] = block2;
+                  //block_write(fs_device, block + l * 4, &block2);
+                  block_write(fs_device, block2, zeros);
+                  sectors--;
+                  if(sectors <= 0)
+                  {
+                    break;
+                  }
+                }
+                else {
+                  success = false;
+                  break;
+                }
               }
+              block_write(fs_device, block, double_indirect_sectors);
+              c++;
             }
-            c++;
+            else {
+              success = false;
+              break;
+            }
           }
+          block_write(fs_device, disk_inode->double_indirect, indirect_sectors);
+          success = true;
         }
         else
         {
@@ -226,6 +260,7 @@ inode_create (block_sector_t sector, off_t length)
       block_write(fs_device, sector, disk_inode);
     }
     free (disk_inode);
+    //printf("success: %d\n", success);
     return success;
 }
 
@@ -445,7 +480,7 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       while(num_sectors > 0 && i < 100) 
       {
         i++;
-        if (free_map_allocate(1,inode->data.direct_blocks[i]))
+        if (free_map_allocate(1, inode->data.direct_blocks[i]))
         {
            block_write(fs_device, inode->data.direct_blocks[i], zeros);
            num_written += 512;
@@ -471,21 +506,31 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       num_written = 0;
       while(num_sectors > 0 && j < 25)
       {
+        // block_sector_t indirect_sectors[128];
+        // if(indirect_offset != 0) 
+        //   block_read(fs_device, inode->data.indirect[j], indirect_sectors);
         while(num_sectors > 0 && indirect_offset < 128) {
           block_sector_t block;
-          free_map_allocate(1, &block);
-          block_write(fs_device, inode->data.indirect[j] + indirect_offset * 4, &block);
-          block_write(fs_device, block, zeros);
-          return_block = block;
-          num_written += 512;
-          num_sectors--;
-          indirect_offset++;
+          if(free_map_allocate(1, &block)) 
+          {
+            //indirect_sectors[indirect_offset] = block;
+            block_write(fs_device, inode->data.indirect[j] + indirect_offset * 4, &block);
+            block_write(fs_device, block, zeros);
+            return_block = block;
+            num_written += 512;
+            num_sectors--;
+            indirect_offset++;
+          }
+          else
+            return NULL;
         }
+        //block_write(fs_device, inode->data.indirect[j], indirect_sectors);
         j++;
         if(num_sectors > 0) 
         {
           indirect_offset = 0;
-          free_map_allocate(1, inode->data.indirect[j]);
+          if(!free_map_allocate(1, inode->data.indirect[j]))
+            return NULL;
         }
       }
       if(num_sectors == 0)
@@ -497,32 +542,48 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
     }
     int indirect_index = inode->data.length / BLOCK_SECTOR_SIZE / 128;
     int direct_index = inode->data.length / BLOCK_SECTOR_SIZE % 128;
+    // block_sector_t double_sectors1[128];
+    // if(direct_index != 0) {
+    //   block_read(fs_device, inode->data.double_indirect, double_sectors1);
+    // }
     while(num_sectors > 0)
     {
+      //block_sector_t double_sectors2[128];
       while(num_sectors > 0 && direct_index < 128) {
         block_sector_t block;
-        free_map_allocate(1, &block);
-        void *buff = malloc(512);
-        block_read(fs_device, inode->data.double_indirect, buff);
-        buff += indirect_index * 4;
-        void *buff2 = malloc(512);
-        block_read(fs_device, *(block_sector_t *)buff, buff2);
-        buff2 += direct_index *4;
-        block_write(fs_device, *(block_sector_t *)buff2, &block);
-        block_write(fs_device, block, zeros);
-        return_block = block;
-        num_written += 512;
-        num_sectors--;          
-        direct_index++;
+        if(free_map_allocate(1, &block))
+        {
+          void *buff = malloc(512);
+          block_read(fs_device, inode->data.double_indirect, buff);
+          buff += indirect_index * 4;
+          void *buff2 = malloc(512);
+          block_read(fs_device, *(block_sector_t *)buff, buff2);
+          buff2 += direct_index *4;
+          block_write(fs_device, *(block_sector_t *)buff2, &block);
+          //double_sectors2[direct_index] = block;
+          block_write(fs_device, block, zeros);
+          return_block = block;
+          num_written += 512;
+          num_sectors--;          
+          direct_index++;
+        }
+        else
+          return NULL;
       }
+      //block_write(fs_device, double_sectors1[indirect_index], double_sectors2);
       indirect_index++;
       if(num_sectors > 0) {
         block_sector_t block2;
-        free_map_allocate(1, &block2);
-        block_write(fs_device, inode->data.double_indirect + indirect_index *4, &block2);
-        direct_index = 0;
+        if(free_map_allocate(1, &block2)) {
+          //double_sectors1[indirect_index] = block2;
+          block_write(fs_device, inode->data.double_indirect + indirect_index *4, &block2);
+          direct_index = 0;
+        }
+        else
+          return NULL;
       }
     }
+    //block_write(fs_device, inode->data.double_indirect, double_sectors1);
     inode->data.length = offset;
     return return_block;
   }
