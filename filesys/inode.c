@@ -50,11 +50,11 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  printf("pos: %d\n", pos);
-  printf("length: %d\n", inode->data.length);
-  if (pos < inode->data.length)
+ // printf("pos: %d\n", pos);
+  //printf("length: %d\n", inode->data.length);
+  if (pos <= inode->data.length)
   {
-    printf("in if\n");
+    //printf("in if\n");
     if(pos / BLOCK_SECTOR_SIZE < 100)
     {
       return inode->data.direct_blocks[pos / BLOCK_SECTOR_SIZE];
@@ -219,6 +219,10 @@ inode_create (block_sector_t sector, off_t length)
         }
       }
          
+    }
+    if(success)
+    {
+      block_write(fs_device, sector, disk_inode);
     }
     free (disk_inode);
     return success;
@@ -541,32 +545,41 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   while (size > 0) 
     {
+      //printf("Size: %d", size);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+      //printf("Sector index: %d\n", sector_idx);
       if(sector_idx == -1)
       {
         sector_idx = file_growth(inode, offset);
       }
-      printf("Block sector: %d\n", sector_idx);
+      //printf("Block sector: %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
-
+      //printf("Offset: %d\n", offset);
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       off_t inode_left = inode_length (inode) - offset;
+     // printf("Inode Length: %d\n", inode_length (inode));
+      //printf("inode left: %d\n", inode_left);
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
+     // printf("Sector left: %d\n", sector_left);
       int min_left = inode_left < sector_left ? inode_left : sector_left;
+     // printf("Min Left: %d\n", min_left);
 
       /* Number of bytes to actually write into this sector. */
       int chunk_size = size < min_left ? size : min_left;
+     // printf("Chunk size: %d\n", chunk_size);
       if (chunk_size <= 0)
         break;
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
+         // printf("Writing to the full sector\n");
           /* Write full sector directly to disk. */
           block_write (fs_device, sector_idx, buffer + bytes_written);
         }
       else 
         {
+          //printf("Bounce Buffer needed\n");
           /* We need a bounce buffer. */
           if (bounce == NULL) 
             {
@@ -592,7 +605,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
-  printf("written: %d\n", bytes_written);
+ // printf("written: %d\n", bytes_written);
   return bytes_written;
 }
 
