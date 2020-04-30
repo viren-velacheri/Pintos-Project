@@ -351,12 +351,12 @@ inode_close (struct inode *inode)
           struct inode_disk temp = inode->data;
           free_map_release (inode->sector, 1);
           int j;
-          for(j = 0; j < 100; j++)
+          for(j = 0; j < 100 && temp.direct_blocks[j] != NULL; j++)
           {
             free_map_release(temp.direct_blocks[j], 1);
           }
           int i;
-          for(i = 0; i < 25; i++)
+          for(i = 0; i < 25 && temp.indirect[i] != NULL; i++)
           {
             block_sector_t block = temp.indirect[i];
             int j = 0;
@@ -402,8 +402,8 @@ inode_close (struct inode *inode)
             }
           }
 
-          // free_map_release (inode->data.start,
-          //                   bytes_to_sectors (inode->data.length)); 
+          //  free_map_release (inode->data.start,
+          //                    bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
