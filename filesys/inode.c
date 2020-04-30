@@ -52,21 +52,31 @@ byte_to_sector (const struct inode *inode, off_t pos)
   ASSERT (inode != NULL);
  // printf("pos: %d\n", pos);
   //printf("length: %d\n", inode->data.length);
-  if (pos <= inode->data.length)
+  if (pos < inode->data.length)
   {
     //printf("in if\n");
     if(pos / BLOCK_SECTOR_SIZE < 100)
     {
+      //printf("in first section\n");
       return inode->data.direct_blocks[pos / BLOCK_SECTOR_SIZE];
     }
     else if (pos / BLOCK_SECTOR_SIZE < 3200)
     {
-      int indirect_index = pos / BLOCK_SECTOR_SIZE / 128;
-      int direct_index = pos / BLOCK_SECTOR_SIZE % 128;
-      void* buff = malloc(512);
+      //printf("pos: %d\n", pos/BLOCK_SECTOR_SIZE);
+      int indirect_index = (pos / BLOCK_SECTOR_SIZE - 100) / 128;
+      //printf("indirect: %d\n", indirect_index);
+      int direct_index = (pos / BLOCK_SECTOR_SIZE - 100) % 128;
+      // if(indirect_index == 0)
+      //   direct_index = (pos / BLOCK_SECTOR_SIZE) % 100;
+      // else
+      //   direct_index = pos / BLOCK_SECTOR_SIZE % 128;
+      //printf("direct: %d\n", direct_index);
+      block_sector_t buff[128];
+      //void* buff = malloc(512);
       block_read(fs_device, inode->data.indirect[indirect_index], buff);
-      buff += direct_index * 4;
-      return *(block_sector_t *)buff;
+      //buff += direct_index * 4;
+      //printf("in second section\n");
+      return buff[direct_index];
     }
     else
     {
@@ -78,6 +88,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
       void* buff2 = malloc(512);
       block_read(fs_device, *(block_sector_t *)buff, buff2);
       buff2 += direct_index * 4;
+      //printf("in third section\n");
       return *(block_sector_t *)buff2;
     }
   }
@@ -155,6 +166,7 @@ inode_create (block_sector_t sector, off_t length)
               block_sector_t block;
               if(free_map_allocate(1, &block)) {
                 indirect_sectors[j] = block;
+                //printf("block1: %d\n", block);
                 //block_write(fs_device, disk_inode->indirect[d] + j * 4, &block);
                 block_write(fs_device, block, zeros);
               }
@@ -180,6 +192,7 @@ inode_create (block_sector_t sector, off_t length)
               block_sector_t block;
               if(free_map_allocate(1, &block)) {
                 indirect_sectors[k] = block;
+                //printf("block2: %d\n", block);
                 //block_write(fs_device, disk_inode->indirect[d] + k * 4, &block);
                 block_write(fs_device, block, zeros);
               }
@@ -388,6 +401,7 @@ inode_close (struct inode *inode)
             free_map_release(block, 1);
             }
           }
+
           // free_map_release (inode->data.start,
           //                   bytes_to_sectors (inode->data.length)); 
         }
