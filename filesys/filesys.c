@@ -58,6 +58,7 @@ filesys_create (const char *name, off_t initial_size)
   // if(success == 0) {
   //   printf("dir: %d\n", dir != NULL);
   //   printf("fmalloc: %d\n", free_map_allocate(1, &inode_sector));
+  //   printf("dir_add: %d\n", dir_add (dir, name, inode_sector));
   // }
   return success;
 }

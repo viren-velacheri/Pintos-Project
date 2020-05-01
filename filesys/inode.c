@@ -134,12 +134,16 @@ inode_create (block_sector_t sector, off_t length)
   if (disk_inode != NULL)
     {
       size_t sectors = bytes_to_sectors (length);
+      if(sectors == 0)
+      {
+        success = true;
+      }
       static char zeros[BLOCK_SECTOR_SIZE];
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       off_t temp = length;
       int i;
-      for(i = 0; i < 100; i++)
+      for(i = 0; i < 100 && sectors != 0; i++)
       {
         if (free_map_allocate (1, &disk_inode->direct_blocks[i]))
         {
@@ -151,6 +155,14 @@ inode_create (block_sector_t sector, off_t length)
             break;
           }
         }
+        else 
+        {
+          success = false;
+          sectors = 0; 
+          break;  
+          // Might have to free the already allocated sectors but not sure.
+        }
+
       }
       int d = 0;
       while(sectors > 0 && d < 25)
