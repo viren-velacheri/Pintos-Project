@@ -362,57 +362,63 @@ inode_close (struct inode *inode)
         {
           struct inode_disk temp = inode->data;
           free_map_release (inode->sector, 1);
-          int j;
-          for(j = 0; j < 100 && temp.direct_blocks[j] != NULL; j++)
-          {
-            free_map_release(temp.direct_blocks[j], 1);
-          }
+          int num_bytes = temp.length;
           int i;
-          for(i = 0; i < 25 && temp.indirect[i] != NULL; i++)
+          for(i = 0; i < num_bytes; i += BLOCK_SECTOR_SIZE) 
           {
-            block_sector_t block = temp.indirect[i];
-            int j = 0;
-            void *buffer = malloc(512);
-            block_read(fs_device, block, buffer);
-            while(j < 128)
-            {
-              block_sector_t temp2 = *(block_sector_t *)buffer;
-              if(temp2 == NULL)
-              {
-                i = 25;
-                break;
-              }
-              free_map_release(temp2, 1);
-              buffer += 4;
-              j++;
-            }
-            free_map_release(block, 1);
+            free_map_release(byte_to_sector(inode, i), 1);
           }
+          // int j;
+          // for(j = 0; j < 100 && temp.direct_blocks[j] != NULL; j++)
+          // {
+          //   free_map_release(temp.direct_blocks[j], 1);
+          // }
+          // int i;
+          // for(i = 0; i < 25 && temp.indirect[i] != NULL; i++)
+          // {
+          //   block_sector_t block = temp.indirect[i];
+          //   int j = 0;
+          //   void *buffer = malloc(512);
+          //   block_read(fs_device, block, buffer);
+          //   while(j < 128)
+          //   {
+          //     block_sector_t temp2 = *(block_sector_t *)buffer;
+          //     if(temp2 == NULL)
+          //     {
+          //       i = 25;
+          //       break;
+          //     }
+          //     free_map_release(temp2, 1);
+          //     buffer += 4;
+          //     j++;
+          //   }
+          //   free_map_release(block, 1);
+          // }
 
-          if(temp.double_indirect != NULL)
-          {
-            int k;
-            for(k = 0; k < 128; k++)
-            {
-            block_sector_t block = temp.double_indirect + k * 4;
-            int l = 0;
-            void *buffer = malloc(512);
-            block_read(fs_device, block, buffer);
-            while(l < 128)
-            {
-              block_sector_t temp2 = *(block_sector_t *)buffer;
-              if(temp2 == NULL)
-              {
-                k = 128;
-                break;
-              }
-              free_map_release(temp2, 1);
-              buffer += 4;
-              l++;
-            }
-            free_map_release(block, 1);
-            }
-          }
+          // if(temp.double_indirect != NULL)
+          // {
+          //   int k;
+          //   for(k = 0; k < 128; k++)
+          //   {
+          //   block_sector_t block = temp.double_indirect + k * 4;
+          //   int l = 0;
+          //   void *buffer = malloc(512);
+          //   block_read(fs_device, block, buffer);
+          //   while(l < 128)
+          //   {
+          //     block_sector_t temp2 = *(block_sector_t *)buffer;
+          //     if(temp2 == NULL)
+          //     {
+          //       k = 128;
+          //       break;
+          //     }
+          //     free_map_release(temp2, 1);
+          //     buffer += 4;
+          //     l++;
+          //   }
+          //   free_map_release(block, 1);
+          //   }
+          //}
 
           //  free_map_release (inode->data.start,
           //                    bytes_to_sectors (inode->data.length)); 
