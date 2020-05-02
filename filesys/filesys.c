@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/malloc.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -63,6 +64,11 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+// struct dir* find_dir(const char *name)
+// {
+  
+// }
+
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
@@ -74,10 +80,55 @@ filesys_open (const char *name)
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
-  if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
+  char** temp_args = malloc(strlen(name));
+       // ASSERT(0);
+        if(temp_args == NULL)
+        {
+          // printf("This 1\n");
+          return NULL;
+        }
+        char* name_copy = malloc(strlen(name) + 1);
+        if(name_copy == NULL)
+        {
+          // printf("This 2\n");
+          return NULL;
+        }
+        
+        memcpy(name_copy, name, strlen(name) + 1);
+        char *token, save_ptr;
+        int argc = 0;
+        for (token = strtok_r (name, "/", &save_ptr); token != NULL;
+              token = strtok_r (NULL, "/", &save_ptr))
+        {
+          temp_args[argc] = token;
+          // printf("Names: %s \n", temp_args[argc]);
+          argc++; 
+        } 
 
+        int i = 0;
+        while(i < argc)
+        {
+          //struct inode *inode = NULL;
+          if(dir != NULL) 
+          {
+            dir_lookup(dir, temp_args[i], &inode);
+            if(inode == NULL)
+            {
+              break;
+            }
+            dir_close(dir);
+            dir = dir_open(inode);
+          }
+          else
+          {
+            break;
+          }
+          i++;
+        }
+
+  // if (dir != NULL)
+  //   dir_lookup (dir, name, &inode);
+  // dir_close (dir);
   return file_open (inode);
 }
 
