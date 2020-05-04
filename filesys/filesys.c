@@ -55,9 +55,11 @@ filesys_create (const char *name, off_t initial_size)
   block_sector_t inode_sector = 0;
   struct inode *inode = NULL;
   struct dir *dir = dir_open_root ();
-  if(name[0] != '/') //relative path
-    dir = thread_current()->cwd;
+  // if(name[0] != '/') //relative path
+  //   dir = thread_current()->cwd;
   char ** path = get_path(name);
+  if(path == NULL)
+    return false;
   // int j = 0;
   // while(path[j] != NULL) {
   //   //printf("path[i]: %s\n", path[j]);
@@ -139,7 +141,8 @@ filesys_open (const char *name)
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
-
+  if(path == NULL)
+    return NULL;
   int i = 0;
   while(path[i + 1] != NULL)
   {
