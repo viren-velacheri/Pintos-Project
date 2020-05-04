@@ -7,11 +7,14 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
 
 static void do_format (void);
+
+char ** get_path(const char *name);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -29,6 +32,8 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+
+  thread_current()->cwd = dir_open_root();
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -46,28 +51,81 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  //printf("name: %s\n", name);
   block_sector_t inode_sector = 0;
+  struct inode *inode = NULL;
   struct dir *dir = dir_open_root ();
+  if(name[0] != '/') //relative path
+    dir = thread_current()->cwd;
+  char ** path = get_path(name);
+  // int j = 0;
+  // while(path[j] != NULL) {
+  //   //printf("path[i]: %s\n", path[j]);
+  //   j++;
+  // }
+  int i = 0;
+  while(path[i + 1] != NULL) {
+    ASSERT(0);
+    if(dir != NULL) 
+    {
+      //printf("path: %s\n", path[i]);
+      //printf("path + 1: %s\n", path[i + 1]);
+      dir_lookup(dir, path[i], &inode);
+      if(inode == NULL)
+      {
+        break;
+      }
+      dir_close(dir);
+      dir = dir_open(inode);
+    }
+    else
+    {
+      break;
+    }
+    i++;
+  }
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, name, inode_sector));
+                  && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
-  //printf("file success: %d\n", success);
-  // if(success == 0) {
-  //   printf("dir: %d\n", dir != NULL);
-  //   printf("fmalloc: %d\n", free_map_allocate(1, &inode_sector));
-  //   printf("dir_add: %d\n", dir_add (dir, name, inode_sector));
-  // }
+  free(path);
   return success;
 }
 
-// struct dir* find_dir(const char *name)
-// {
-  
-// }
+char ** get_path(const char *name)
+{
+  char** temp_args = malloc(strlen(name));
+      //ASSERT(0);
+  if(temp_args == NULL)
+  {
+    // printf("This 1\n");
+    return NULL;
+  }
+  char* name_copy = malloc(strlen(name) + 1);
+  if(name_copy == NULL)
+  {
+    // printf("This 2\n");
+    return NULL;
+  }
+        
+  memcpy(name_copy, name, strlen(name) + 1);
+  char *token, save_ptr;
+  int argc = 0;
+  for (token = strtok_r (name, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+  {
+    temp_args[argc] = token;
+    //printf("Names: %s \n", temp_args[argc]);
+    argc++; 
+  }
+  temp_args[argc] = NULL;
+  free(name_copy);
+  return temp_args;
+}
 
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
@@ -80,55 +138,36 @@ filesys_open (const char *name)
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
-  char** temp_args = malloc(strlen(name));
-       // ASSERT(0);
-        if(temp_args == NULL)
-        {
-          // printf("This 1\n");
-          return NULL;
-        }
-        char* name_copy = malloc(strlen(name) + 1);
-        if(name_copy == NULL)
-        {
-          // printf("This 2\n");
-          return NULL;
-        }
-        
-        memcpy(name_copy, name, strlen(name) + 1);
-        char *token, save_ptr;
-        int argc = 0;
-        for (token = strtok_r (name, "/", &save_ptr); token != NULL;
-              token = strtok_r (NULL, "/", &save_ptr))
-        {
-          temp_args[argc] = token;
-          // printf("Names: %s \n", temp_args[argc]);
-          argc++; 
-        } 
+  char ** path = get_path(name);
 
-        int i = 0;
-        while(i < argc)
-        {
-          //struct inode *inode = NULL;
-          if(dir != NULL) 
-          {
-            dir_lookup(dir, temp_args[i], &inode);
-            if(inode == NULL)
-            {
-              break;
-            }
-            dir_close(dir);
-            dir = dir_open(inode);
-          }
-          else
-          {
-            break;
-          }
-          i++;
-        }
-
+  int i = 0;
+  while(path[i + 1] != NULL)
+  {
+    ASSERT(0);
+    //struct inode *inode = NULL;
+    if(dir != NULL) 
+    {
+      dir_lookup(dir, path[i], &inode);
+      if(inode == NULL)
+      {
+        break;
+      }
+      dir_close(dir);
+      dir = dir_open(inode);
+    }
+    else
+    {
+      break;
+    }
+    i++;
+  }
+  if(dir != NULL)
+    dir_lookup(dir, path[i], &inode);
+  dir_close(dir);
   // if (dir != NULL)
   //   dir_lookup (dir, name, &inode);
   // dir_close (dir);
+  free(path);
   return file_open (inode);
 }
 
