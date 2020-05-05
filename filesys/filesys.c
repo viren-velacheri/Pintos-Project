@@ -87,7 +87,7 @@ filesys_create (const char *name, off_t initial_size)
     i++;
   }
 
-  bool success = (dir != NULL && path[i + 1] != NULL
+  bool success = (dir != NULL && path[i] != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
                   && dir_add (dir, path[i], inode_sector));
@@ -137,16 +137,21 @@ char ** get_path(const char *name)
 struct file *
 filesys_open (const char *name)
 {
+  printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
+  
   if(path == NULL)
     return NULL;
   int i = 0;
-  while(path[i + 1] != NULL)
+  //printf("count: %d\n", i);
+  while(path[i] != NULL && path[i + 1] != NULL)
   {
-    ASSERT(0);
+
+    printf("count: %d\n", i);
+    //ASSERT(0);
     //struct inode *inode = NULL;
     if(dir != NULL) 
     {
@@ -164,7 +169,7 @@ filesys_open (const char *name)
     }
     i++;
   }
-  if(dir != NULL)
+  if(dir != NULL && path[i] != NULL)
     dir_lookup(dir, path[i], &inode);
   dir_close(dir);
   // if (dir != NULL)
