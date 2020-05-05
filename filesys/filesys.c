@@ -67,7 +67,7 @@ filesys_create (const char *name, off_t initial_size)
   // }
   int i = 0;
   while(path[i + 1] != NULL) {
-    ASSERT(0);
+    //ASSERT(0);
     if(dir != NULL) 
     {
       //printf("path: %s\n", path[i]);
@@ -87,7 +87,7 @@ filesys_create (const char *name, off_t initial_size)
     i++;
   }
 
-  bool success = (dir != NULL
+  bool success = (dir != NULL && path[i + 1] != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
                   && dir_add (dir, path[i], inode_sector));
