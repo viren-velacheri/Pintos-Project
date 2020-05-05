@@ -137,7 +137,7 @@ char ** get_path(const char *name)
 struct file *
 filesys_open (const char *name)
 {
-  printf("Name:  %s\n", name);
+  //printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
@@ -150,7 +150,7 @@ filesys_open (const char *name)
   while(path[i] != NULL && path[i + 1] != NULL)
   {
 
-    printf("count: %d\n", i);
+    //printf("count: %d\n", i);
     //ASSERT(0);
     //struct inode *inode = NULL;
     if(dir != NULL) 
