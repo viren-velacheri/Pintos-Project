@@ -49,20 +49,25 @@ filesys_done (void)
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size) 
+filesys_create (const char *name, off_t initial_size, bool isdir) 
 {
   //printf("name: %s\n", name);
   block_sector_t inode_sector = 0;
   struct inode *inode = NULL;
+  
   struct dir *dir = dir_open_root ();
   // if(name[0] != '/') //relative path
   //   dir = thread_current()->cwd;
+
   char ** path = get_path(name);
-  if(path == NULL)
+  if(path == NULL) {
+    //printf("null path\n");
     return false;
+  }
+
   // int j = 0;
   // while(path[j] != NULL) {
-  //   //printf("path[i]: %s\n", path[j]);
+  //   printf("path[i]: %s\n", path[j]);
   //   j++;
   // }
   int i = 0;
@@ -93,6 +98,13 @@ filesys_create (const char *name, off_t initial_size)
                   && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
+  // if(isdir) {
+  //   dir_lookup(dir, path[i], &inode);
+  //   dir_close(dir);
+  //   dir = dir_open(inode);
+  //   printf("inode: %p\n", inode);
+  //   //dir->inode->deny_write_cnt++;
+  // }
   dir_close (dir);
   free(path);
   return success;
@@ -113,11 +125,11 @@ char ** get_path(const char *name)
     // printf("This 2\n");
     return NULL;
   }
-        
   memcpy(name_copy, name, strlen(name) + 1);
+
   char *token, save_ptr;
   int argc = 0;
-  for (token = strtok_r (name, "/", &save_ptr); token != NULL;
+  for (token = strtok_r (name_copy, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr))
   {
     temp_args[argc] = token;
@@ -125,7 +137,7 @@ char ** get_path(const char *name)
     argc++; 
   }
   temp_args[argc] = NULL;
-  free(name_copy);
+  //free(name_copy);
   return temp_args;
 }
 
@@ -139,6 +151,8 @@ filesys_open (const char *name)
 {
   //printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
+  // if(name[0] != '/') //relative path
+  //   dir = thread_current()->cwd;
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
@@ -177,6 +191,49 @@ filesys_open (const char *name)
   // dir_close (dir);
   free(path);
   return file_open (inode);
+}
+
+
+bool filesys_chdir(const char *dir) 
+{
+  struct inode *inode = NULL;
+  
+  struct dir *directory = dir_open_root();
+  if(dir[0] != '/') //relative path
+    directory = thread_current()->cwd;
+  
+  char ** path = get_path(dir);
+  if(path == NULL)
+    return false;
+  
+  int i = 0;
+  while(path[i] != NULL && path[i + 1] != NULL)
+  {
+    if(directory != NULL) 
+    {
+      dir_lookup(directory, path[i], &inode);
+      if(inode == NULL)
+      {
+        return false;
+      }
+      dir_close(directory);
+      directory = dir_open(inode);
+    }
+    else
+    {
+      return false;
+    }
+    i++;
+  }
+  if(directory == NULL)
+    return false;
+  dir_lookup(directory, path[i], &inode);
+  dir_close(directory);
+  directory = dir_open(inode);
+  thread_current()->cwd = directory;
+  dir_close(directory);
+  return true;
+
 }
 
 /* Deletes the file named NAME.

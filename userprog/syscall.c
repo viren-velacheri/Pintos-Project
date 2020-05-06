@@ -9,6 +9,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "filesys/directory.h"
 
 #define ERROR -1  /* Used when a pointer or file is invalid */
 #define STDIN 0   /* Standard Input File Descriptor */
@@ -169,7 +170,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = filesys_create(file, initial_size);
+      f->eax = filesys_create(file, initial_size, 0);
       lock_release(&file_lock);
       break;
 
@@ -403,6 +404,23 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_close(file_to_close);
       lock_release(&file_lock);
       break;
+
+    case SYS_CHDIR:
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      char *dir = *(int *) temp_esp;
+      valid_pointer_check(dir);
+      f->eax = filesys_chdir(dir);
+      break;
+    
+    case SYS_MKDIR:
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      char *dir_mk = *(int *) temp_esp;
+      valid_pointer_check(dir_mk);
+      f->eax = filesys_create(dir_mk, 0, 1);
+      break;
+
   }
 
   //Viren done driving
