@@ -15,11 +15,12 @@
 struct inode_disk
   {
     //block_sector_t start;               /* First data sector. */
+    int isdir;
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
     //uint32_t unused[125];               /* Not used. */
     block_sector_t direct_blocks[100];
-    block_sector_t indirect[25];
+    block_sector_t indirect[24];
     block_sector_t double_indirect;
   };
 
@@ -138,7 +139,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, int isdir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -163,6 +164,7 @@ inode_create (block_sector_t sector, off_t length)
       }
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->isdir = isdir;
       off_t temp = length;
       int i;
       for(i = 0; i < 100 && sectors != 0; i++)
@@ -187,7 +189,7 @@ inode_create (block_sector_t sector, off_t length)
 
       }
       int d = 0;
-      while(sectors > 0 && d < 25)
+      while(sectors > 0 && d < 24)
       {
         if (free_map_allocate (1, &disk_inode->indirect[d]))
         {
@@ -582,7 +584,7 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       int j = (inode->data.length / BLOCK_SECTOR_SIZE - 100) / 128;
       int indirect_offset = (inode->data.length / BLOCK_SECTOR_SIZE - 100) % 128;
       num_written = 0;
-      while(num_sectors > 0 && j < 25)
+      while(num_sectors > 0 && j < 24)
       {
         printf("indirect index: %d\n", j);
         block_sector_t indirect_sectors[128];

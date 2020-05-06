@@ -170,7 +170,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       //use synchronization with the file lock when
       //accessing the file system
       lock_acquire(&file_lock);
-      f->eax = filesys_create(file, initial_size, 0);
+      f->eax = filesys_create(file, initial_size);
       lock_release(&file_lock);
       break;
 
@@ -418,7 +418,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       valid_pointer_check(temp_esp);
       char *dir_mk = *(int *) temp_esp;
       valid_pointer_check(dir_mk);
-      f->eax = filesys_create(dir_mk, 0, 1);
+      f->eax = mkdir(dir_mk);
       break;
 
   }

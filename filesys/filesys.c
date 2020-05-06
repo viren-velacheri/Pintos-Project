@@ -49,7 +49,7 @@ filesys_done (void)
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size, bool isdir) 
+filesys_create (const char *name, off_t initial_size) 
 {
   //printf("name: %s\n", name);
   block_sector_t inode_sector = 0;
@@ -80,6 +80,8 @@ filesys_create (const char *name, off_t initial_size, bool isdir)
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
+       // printf("INODE IS NULL \n");
+       
         break;
       }
       dir_close(dir);
@@ -92,9 +94,10 @@ filesys_create (const char *name, off_t initial_size, bool isdir)
     i++;
   }
 
+
   bool success = (dir != NULL && path[i] != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size)
+                  && inode_create (inode_sector, initial_size, 0)
                   && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
@@ -234,6 +237,83 @@ bool filesys_chdir(const char *dir)
   dir_close(directory);
   return true;
 
+}
+
+bool mkdir(const char *directory)
+{
+  //printf("name: %s\n", name);
+  block_sector_t inode_sector = 0;
+  struct inode *inode = NULL;
+  
+  struct dir *dir = dir_open_root ();
+  // if(name[0] != '/') //relative path
+  //   dir = thread_current()->cwd;
+
+  char ** path = get_path(directory);
+  if(path == NULL) {
+    //printf("null path\n");
+    return false;
+  }
+
+  // int j = 0;
+  // while(path[j] != NULL) {
+  //   printf("path[i]: %s\n", path[j]);
+  //   j++;
+  // }
+  int i = 0;
+  while(path[i + 1] != NULL) {
+    //ASSERT(0);
+    if(dir != NULL) 
+    {
+      //printf("path: %s\n", path[i]);
+      //printf("path + 1: %s\n", path[i + 1]);
+      dir_lookup(dir, path[i], &inode);
+      if(inode == NULL)
+      {
+       // printf("INODE IS NULL \n");
+       
+        break;
+      }
+      dir_close(dir);
+      dir = dir_open(inode);
+    }
+    else
+    {
+      break;
+    }
+    i++;
+  }
+
+
+  bool success = (dir != NULL && path[i] != NULL
+                  && free_map_allocate (1, &inode_sector)
+                  && dir_create (inode_sector, 16)
+                  && dir_add (dir, path[i], inode_sector));
+  if (!success && inode_sector != 0) 
+    free_map_release (inode_sector, 1);
+  if(success)
+  {
+    dir_lookup(dir, path[i], &inode);
+    dir_close(dir);
+    dir = dir_open(inode);
+    inode_deny_write(inode);
+  }
+  // if(isdir) {
+  //   dir_lookup(dir, path[i], &inode);
+  //   dir_close(dir);
+  //   dir = dir_open(inode);
+  //   printf("inode: %p\n", inode);
+  //   //dir->inode->deny_write_cnt++;
+  // }
+  dir_close (dir);
+  free(path);
+  return success;
+}
+
+bool isdir(struct file *file)
+{
+  return false;
+ // return file->inode->data.isdir;
 }
 
 /* Deletes the file named NAME.
