@@ -55,10 +55,19 @@ byte_to_sector (const struct inode *inode, off_t pos)
   if (pos <= inode->data.length)
   {
     //printf("in if\n");
-    if(pos / BLOCK_SECTOR_SIZE < 100)
+    int block_idx = pos / BLOCK_SECTOR_SIZE;
+    if(block_idx < 100)
     {
       //printf("in first section\n");
-      return inode->data.direct_blocks[pos / BLOCK_SECTOR_SIZE];
+      //printf("block idx: %d\n", block_idx);
+      //printf("sector num: %d\n", inode->data.direct_blocks[block_idx]);
+      if(inode->data.direct_blocks[block_idx] != 0) {
+        //printf("byte_to_sector\n");
+      // print_sectors(inode->data);
+        return inode->data.direct_blocks[block_idx];
+      }
+      else
+        return -1;
     }
     else if (pos / BLOCK_SECTOR_SIZE < 3200)
     {
@@ -94,6 +103,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
   }
   else
   {
+    printf("length one\n");
     return -1;
   }
   // if (pos < inode->data.length)
@@ -105,6 +115,15 @@ byte_to_sector (const struct inode *inode, off_t pos)
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
 static struct list open_inodes;
+
+void print_sectors(struct inode_disk disk)
+{
+  int i;
+  for(i = 0; i < 100; i++)
+  {
+    printf("Sector %d: %d\n", i, disk.direct_blocks[i]);
+  }
+}
 
 /* Initializes the inode module. */
 void
@@ -286,6 +305,8 @@ inode_create (block_sector_t sector, off_t length)
     {
       block_write(fs_device, sector, disk_inode);
     }
+    // printf("inode_create\n");
+    // print_sectors(*disk_inode);
     free (disk_inode);
     //printf("success: %d\n", success);
     return success;
@@ -503,38 +524,52 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
   // if(inode->data.length == 0) {
   //   free_map_allocate(1, inode->data.direct_blocks[0]);
   // }
-  if(temp <= temp2)
+  if(temp < temp2)
   {
     //printf("in if\n");
-    //inode->data.length = offset;
+    inode->data.length = offset;
+    block_write(fs_device, inode->sector, &inode->data);
     //printf("inode length: %d\n", inode_length(inode));
-    return byte_to_sector(inode, offset);
+    int bts_return = byte_to_sector(inode, offset);
+    //printf("GROWTH RETURN: %d\n", bts_return);
+    //ASSERT(0);
+    // printf("file growth\n");
+    // print_sectors(inode->data);
+    return bts_return;
   }
   else
   {
     //printf("in else\n");
     int num_sectors = (temp - temp2) / 512 + 1;
+    //printf("num sectors(file_growth): %d\n", num_sectors);
     int i = inode->data.length / 512;
+    //printf("direct index(file_growth): %d\n", i);
     if(i < 100)
     {
       while(num_sectors > 0 && i < 100) 
       {
-        i++;
-        if (free_map_allocate(1, inode->data.direct_blocks[i]))
+        //printf("in while\n");
+        if (free_map_allocate(1, &inode->data.direct_blocks[i]))
         {
+           //printf("growth block idx: %d\n", i);
            block_write(fs_device, inode->data.direct_blocks[i], zeros);
            num_written += 512;
            num_sectors--;
         }
         else 
         {
+          //printf("in else :(\n");
           return NULL;
         }
+        i++;
       } 
       if(num_sectors == 0)
       {
         inode->data.length = offset;
+        //printf("new sector(file_growth): %d\n", inode->data.direct_blocks[i]);
         block_write(fs_device, inode->sector, &inode->data);
+        // printf("file growth2\n");
+        // print_sectors(inode->data);
         return inode->data.direct_blocks[i];
       }
       inode->data.length += num_written;
@@ -653,19 +688,24 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       //printf("Size: %d\n", size);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx;
-      if(inode->data.length == 0){
-        sector_idx = file_growth(inode, offset);
-      }
-      else {
-        sector_idx = byte_to_sector (inode, offset);
-      }
+      // if(inode->data.length == 0){
+      //   sector_idx = file_growth(inode, offset);
+      // }
+      // else {
+      sector_idx = byte_to_sector (inode, offset);
+      // printf("inode_write_at\n");
+      // print_sectors(inode->data);
+      // }
       //printf("Sector index: %d\n", sector_idx);
       if(sector_idx == -1)
       {
         //printf("file growth\n");
         sector_idx = file_growth(inode, offset);
       }
-      //printf("Block sector: %d\n", sector_idx);
+      sector_idx = byte_to_sector(inode, offset);
+      // printf("inode_write_at2\n");
+      // print_sectors(inode->data);
+      //printf("Block sector(inode_write_at): %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
       //printf("Offset: %d\n", offset);
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -704,6 +744,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
           /* If the sector contains data before or after the chunk
              we're writing, then we need to read in the sector
              first.  Otherwise we start with a sector of all zeros. */
+          //printf("Block sector(inode_write_at): %d\n", sector_idx);
+          //printf("%"PRIu32, sector_idx);
           if (sector_ofs > 0 || chunk_size < sector_left) 
             block_read (fs_device, sector_idx, bounce);
           else
@@ -712,7 +754,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
           block_write (fs_device, sector_idx, bounce);
         }
       if(offset + chunk_size > inode->data.length) {
-        inode->data.length = offset + chunk_size;
+        inode->data.length += chunk_size;
         block_write(fs_device, inode->sector, &inode->data);
       }
       //printf("size of file: %d\n", inode->data.length);
