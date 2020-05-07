@@ -804,3 +804,8 @@ bool inodeisdir(const struct inode *inode)
 {
   return inode->data.isdir;
 }
+
+int inumber(const struct inode *inode)
+{
+  return inode->sector;
+}

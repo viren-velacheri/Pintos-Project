@@ -20,5 +20,6 @@ void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
 bool inodeisdir(const struct inode *inode);
+int inumber(const struct inode *inode);
 
 #endif /* filesys/inode.h */

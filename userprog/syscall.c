@@ -10,6 +10,7 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "filesys/directory.h"
+#include "filesys/inode.h"
 
 #define ERROR -1  /* Used when a pointer or file is invalid */
 #define STDIN 0   /* Standard Input File Descriptor */
@@ -420,6 +421,60 @@ syscall_handler (struct intr_frame *f UNUSED)
       valid_pointer_check(dir_mk);
       f->eax = mkdir(dir_mk);
       break;
+
+    case SYS_READDIR:
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      int fd_readdir = *(int *) temp_esp;
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      char *name_readdir = *(int *) temp_esp;
+      valid_pointer_check(dir_readdir);
+      struct thread *t_readdir = thread_current();
+      fd_exist_check(t_readdir, fd_readdir, STDERR);
+      struct file *file_to_readdir = t_readdir->set_of_files[fd_readdir];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_readdir);
+      if(!inodeisdir(file_get_inode(file_to_readdir)))
+      {
+        exit(ERROR);
+      }
+      else
+      {
+        struct dir* dir_readir = (struct dir*) file_to_readdir;
+        f->eax = dir_readdir(dir_readir, name_readdir);
+      }
+
+    case SYS_ISDIR:
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      int fd_isdir = *(int *) temp_esp;
+      struct thread *t_isdir = thread_current();
+      fd_exist_check(t_isdir, fd_isdir, STDERR);
+      struct file *file_to_isdir = t_isdir->set_of_files[fd_isdir];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_isdir);
+      f->eax = inodeisdir(file_get_inode(file_to_isdir));
+
+    case SYS_INUMBER:
+      temp_esp += sizeof(int);
+      valid_pointer_check(temp_esp);
+      int fd_inumber = *(int *) temp_esp;
+      struct thread *t_inumber = thread_current();
+      fd_exist_check(t_inumber, fd_inumber, STDERR);
+      struct file *file_to_inumber = t_inumber->set_of_files[fd_inumber];
+      // Additional check done in case a file with valid fd
+      // was closed earlier, so exit with -1 error status
+      // when such a thing happens.
+      file_exist_check(file_to_inumber);
+      f->eax = inumber(file_get_inode(file_to_inumber));
+
+
+
 
   }
 
