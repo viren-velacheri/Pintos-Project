@@ -377,6 +377,7 @@ inode_close (struct inode *inode)
   if (inode == NULL)
     return;
 
+  block_write(fs_device, inode->sector, &inode->data);
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -449,7 +450,6 @@ inode_close (struct inode *inode)
           //  free_map_release (inode->data.start,
           //                    bytes_to_sectors (inode->data.length)); 
         }
-
       free (inode); 
     }
 }

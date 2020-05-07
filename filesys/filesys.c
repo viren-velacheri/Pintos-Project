@@ -56,8 +56,8 @@ filesys_create (const char *name, off_t initial_size)
   struct inode *inode = NULL;
   
   struct dir *dir = dir_open_root ();
-  // if(name[0] != '/') //relative path
-  //   dir = thread_current()->cwd;
+  if(name[0] != '/') //relative path
+    dir = dir_reopen(thread_current()->cwd);
 
   char ** path = get_path(name);
   if(path == NULL) {
