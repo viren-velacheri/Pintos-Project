@@ -86,7 +86,11 @@ byte_to_sector (const struct inode *inode, off_t pos)
       block_read(fs_device, inode->data.indirect[indirect_index], buff);
       //buff += direct_index * 4;
       //printf("in second section\n");
-      return buff[direct_index];
+      if(buff[direct_index] != 0) {
+        return buff[direct_index];
+      }
+      else
+        return -1;
     }
     else
     {
@@ -394,61 +398,7 @@ inode_close (struct inode *inode)
           for(i = 0; i < num_bytes; i += BLOCK_SECTOR_SIZE) 
           {
             free_map_release(byte_to_sector(inode, i), 1);
-          }
-          // int j;
-          // for(j = 0; j < 100 && temp.direct_blocks[j] != NULL; j++)
-          // {
-          //   free_map_release(temp.direct_blocks[j], 1);
-          // }
-          // int i;
-          // for(i = 0; i < 25 && temp.indirect[i] != NULL; i++)
-          // {
-          //   block_sector_t block = temp.indirect[i];
-          //   int j = 0;
-          //   void *buffer = malloc(512);
-          //   block_read(fs_device, block, buffer);
-          //   while(j < 128)
-          //   {
-          //     block_sector_t temp2 = *(block_sector_t *)buffer;
-          //     if(temp2 == NULL)
-          //     {
-          //       i = 25;
-          //       break;
-          //     }
-          //     free_map_release(temp2, 1);
-          //     buffer += 4;
-          //     j++;
-          //   }
-          //   free_map_release(block, 1);
-          // }
-
-          // if(temp.double_indirect != NULL)
-          // {
-          //   int k;
-          //   for(k = 0; k < 128; k++)
-          //   {
-          //   block_sector_t block = temp.double_indirect + k * 4;
-          //   int l = 0;
-          //   void *buffer = malloc(512);
-          //   block_read(fs_device, block, buffer);
-          //   while(l < 128)
-          //   {
-          //     block_sector_t temp2 = *(block_sector_t *)buffer;
-          //     if(temp2 == NULL)
-          //     {
-          //       k = 128;
-          //       break;
-          //     }
-          //     free_map_release(temp2, 1);
-          //     buffer += 4;
-          //     l++;
-          //   }
-          //   free_map_release(block, 1);
-          //   }
-          //}
-
-          //  free_map_release (inode->data.start,
-          //                    bytes_to_sectors (inode->data.length)); 
+          } 
         }
       free (inode); 
     }
@@ -523,7 +473,7 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
   int temp = offset - inode->data.length;
   int temp2 = inode->data.length % 512;
   static char zeros[BLOCK_SECTOR_SIZE];
-  int num_written;
+  int num_written = 0;
   // if(inode->data.length == 0) {
   //   free_map_allocate(1, inode->data.direct_blocks[0]);
   // }
@@ -576,24 +526,31 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
         // print_sectors(inode->data);
         return inode->data.direct_blocks[i];
       }
+      //printf("prev length: %d\n", inode->data.length);
+      //printf("num written: %d\n", num_written);
       inode->data.length += num_written;
+      //printf("new length: %d\n", inode->data.length);
     }
     block_sector_t return_block;
     if(i < 3200 || num_sectors > 0)
     {
+      //printf("in if\n");
+      //printf("length: %d\n", inode->data.length);
       int j = (inode->data.length / BLOCK_SECTOR_SIZE - 100) / 128;
       int indirect_offset = (inode->data.length / BLOCK_SECTOR_SIZE - 100) % 128;
       num_written = 0;
       while(num_sectors > 0 && j < 24)
       {
-        printf("indirect index: %d\n", j);
+        //printf("indirect index: %d\n", j);
         block_sector_t indirect_sectors[128];
         if(indirect_offset != 0) 
           block_read(fs_device, inode->data.indirect[j], indirect_sectors);
         while(num_sectors > 0 && indirect_offset < 128) {
+          //printf("indirect offset: %d\n", indirect_offset);
           block_sector_t block;
           if(free_map_allocate(1, &block)) 
           {
+            //printf("allocated sector: %d\n", block);
             indirect_sectors[indirect_offset] = block;
             //block_write(fs_device, inode->data.indirect[j] + indirect_offset * 4, &block);
             block_write(fs_device, block, zeros);
@@ -693,15 +650,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       //printf("Size: %d\n", size);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx;
-      // if(inode->data.length == 0){
-      //   sector_idx = file_growth(inode, offset);
-      // }
-      // else {
       sector_idx = byte_to_sector (inode, offset);
-      // printf("inode_write_at\n");
-      // print_sectors(inode->data);
-      // }
-      //printf("Sector index: %d\n", sector_idx);
       if(sector_idx == -1)
       {
         //printf("file growth\n");
@@ -710,9 +659,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       }
       // printf("inode_write_at2\n");
       // print_sectors(inode->data);
-     // printf("Block sector(inode_write_at): %d\n", sector_idx);
+      //printf("Block sector(inode_write_at): %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
-      //printf("Offset: %d\n", offset);
+      //printf("write offset: %d\n", sector_ofs);
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       //off_t inode_left = inode_length (inode) - offset;
       //printf("Inode Length: %d\n", inode_length (inode));

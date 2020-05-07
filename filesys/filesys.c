@@ -154,24 +154,28 @@ filesys_open (const char *name)
 {
   //printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
-  // if(name[0] != '/') //relative path
-  //   dir = thread_current()->cwd;
+  if(name[0] != '/') //relative path
+    dir = dir_reopen(thread_current()->cwd);
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
   
   if(path == NULL)
     return NULL;
+  //printf("path: %s\n", path[0]);
   int i = 0;
   //printf("count: %d\n", i);
   while(path[i] != NULL && path[i + 1] != NULL)
   {
-
-    //printf("count: %d\n", i);
-    //ASSERT(0);
-    //struct inode *inode = NULL;
+    //printf("in while\n");
     if(dir != NULL) 
     {
+      if(path[i] == '.') 
+      {
+        dir = dir_reopen(thread_current()->cwd);
+      }
+      //else if(path[i] == '..')
+      else{
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
@@ -179,6 +183,7 @@ filesys_open (const char *name)
       }
       dir_close(dir);
       dir = dir_open(inode);
+      }
     }
     else
     {

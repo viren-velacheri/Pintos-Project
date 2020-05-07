@@ -339,7 +339,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   //Brock driving now
 
-  lock_acquire(&file_lock);
+
   /* Open executable file. */
   file = filesys_open (actualFileName);
   if (file == NULL) 
@@ -434,7 +434,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   palloc_free_page(filename);
   palloc_free_page(actualFileName);
-  lock_release(&file_lock);
   return success;
 
   //Brock done driving
