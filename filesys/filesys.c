@@ -313,7 +313,8 @@ bool mkdir(const char *directory)
 bool isdir(struct file *file)
 {
   return false;
- // return file->inode->data.isdir;
+  // struct inode *i = file_get_inode (file);
+  // return i->data.isdir;
 }
 
 /* Deletes the file named NAME.
