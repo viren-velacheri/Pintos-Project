@@ -545,6 +545,11 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
         block_sector_t indirect_sectors[128];
         if(indirect_offset != 0) 
           block_read(fs_device, inode->data.indirect[j], indirect_sectors);
+        else {
+          int z;
+          for(z = 0; z < 128; z++) 
+            indirect_sectors[z] = 0;
+        }
         while(num_sectors > 0 && indirect_offset < 128) {
           //printf("indirect offset: %d\n", indirect_offset);
           block_sector_t block;
@@ -558,6 +563,7 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
             num_written += 512;
             num_sectors--;
             indirect_offset++;
+            //block_write(fs_device, inode->sector, &inode->data);
           }
           else
             return NULL;
