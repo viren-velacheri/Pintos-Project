@@ -154,12 +154,14 @@ filesys_open (const char *name)
 {
   //printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
+  //printf("dir: %p\n", dir);
   if(name[0] != '/') //relative path
     dir = dir_reopen(thread_current()->cwd);
+  //printf("new dir: %p\n", dir);
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
-  
+  //printf("path[0]: %s\n", path[0]);
   if(path == NULL)
     return NULL;
   //printf("path: %s\n", path[0]);
@@ -191,14 +193,18 @@ filesys_open (const char *name)
     }
     i++;
   }
-  if(dir != NULL && path[i] != NULL)
+  if(dir != NULL && path[i] != NULL) {
     dir_lookup(dir, path[i], &inode);
+    //printf("b's inode: %p\n", inode);
+  }
   dir_close(dir);
   // if (dir != NULL)
   //   dir_lookup (dir, name, &inode);
   // dir_close (dir);
   free(path);
-  return file_open (inode);
+  struct file *f = file_open (inode);
+  //printf("file: %p\n", f);
+  return f;
 }
 
 
@@ -207,9 +213,10 @@ bool filesys_chdir(const char *dir)
   struct inode *inode = NULL;
   
   struct dir *directory = dir_open_root();
+  //printf("root dir: %p\n", directory);
   if(dir[0] != '/') //relative path
-    directory = thread_current()->cwd;
-  
+    directory = dir_reopen(thread_current()->cwd);
+  //printf("cwd: %p\n", directory);
   char ** path = get_path(dir);
   if(path == NULL)
     return false;
@@ -235,10 +242,16 @@ bool filesys_chdir(const char *dir)
   }
   if(directory == NULL)
     return false;
+  //printf("opening b: %s\n", path[i]);
+  //printf("cwd: %p\n", directory);
   dir_lookup(directory, path[i], &inode);
   dir_close(directory);
   directory = dir_open(inode);
-  thread_current()->cwd = directory;
+  if(directory == NULL) {
+    //printf("dir is null\n");
+    return false;
+  }
+  thread_current()->cwd = dir_reopen(directory);
   dir_close(directory);
   return true;
 
@@ -251,8 +264,8 @@ bool mkdir(const char *directory)
   struct inode *inode = NULL;
   
   struct dir *dir = dir_open_root ();
-  // if(name[0] != '/') //relative path
-  //   dir = thread_current()->cwd;
+  if(directory[0] != '/') //relative path
+    dir = dir_reopen(thread_current()->cwd);
 
   char ** path = get_path(directory);
   if(path == NULL) {
