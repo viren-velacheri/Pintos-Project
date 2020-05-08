@@ -33,7 +33,7 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
-
+  //set the initial thread's cwd to the root directory
   thread_current()->cwd = dir_open_root();
 }
 
@@ -52,7 +52,6 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
-  //printf("name: %s\n", name);
   block_sector_t inode_sector = 0;
   struct inode *inode = NULL;
   
@@ -60,21 +59,26 @@ filesys_create (const char *name, off_t initial_size)
   if(name[0] != '/') //relative path
     dir = dir_reopen(thread_current()->cwd);
 
+  //get tokenized path name
   char ** path = get_path(name);
   if(path == NULL) {
     return false;
   }
 
+  //loop through path name
   int i = 0;
   while(path[i + 1] != NULL) {
     if(dir != NULL) 
     {
+      //find the next directory in path
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
         break;
       }
+      //close the previous directory
       dir_close(dir);
+      //open new directory
       dir = dir_open(inode);
     }
     else
@@ -91,11 +95,16 @@ filesys_create (const char *name, off_t initial_size)
                   && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
+  
   dir_close (dir);
   free(path);
   return success;
 }
 
+/* Method that takes in a string name and tokenizes it using
+  a '/' delimiter, putting the elements of the path into an array
+  that is returned, NULL is returned on an error
+*/
 char ** get_path(const char *name)
 {
   char** temp_args = malloc(strlen(name));
@@ -135,26 +144,34 @@ filesys_open (const char *name)
     dir = dir_reopen(thread_current()->cwd);
   struct inode *inode = NULL;
 
+  //get tokenized path name
   char ** path = get_path(name);
   if(path == NULL)
     return NULL;
+  
+  //loop through directories in the path
   int i = 0;
   while(path[i] != NULL && path[i + 1] != NULL)
   {
     if(dir != NULL) 
     {
+      //'.' opens the current working directory
       if(path[i] == '.') 
       {
         dir = dir_reopen(thread_current()->cwd);
       }
-      else{
-      dir_lookup(dir, path[i], &inode);
-      if(inode == NULL)
+      else
       {
-        break;
-      }
-      dir_close(dir);
-      dir = dir_open(inode);
+        //lookup the next directory
+        dir_lookup(dir, path[i], &inode);
+        if(inode == NULL)
+        {
+          break;
+        }
+        //close the previous directory
+        dir_close(dir);
+        //open the new directory
+        dir = dir_open(inode);
       }
     }
     else
@@ -163,16 +180,19 @@ filesys_open (const char *name)
     }
     i++;
   }
+  //lookup the last directory/file in path to be opened
   if(dir != NULL && path[i] != NULL) {
     dir_lookup(dir, path[i], &inode);
   }
   dir_close(dir);
   free(path);
-  struct file *f = file_open (inode);
-  return f;
+
+  return file_open (inode);
 }
 
-
+/* Method to change the calling thread's current working directory
+  to dir. Returns true if successful and false otherwise
+*/
 bool filesys_chdir(const char *dir) 
 {
   struct inode *inode = NULL;
@@ -180,21 +200,27 @@ bool filesys_chdir(const char *dir)
   struct dir *directory = dir_open_root();
   if(dir[0] != '/') //relative path
     directory = dir_reopen(thread_current()->cwd);
+  
+  //get tokenized path name
   char ** path = get_path(dir);
   if(path == NULL)
     return false;
   
+  //loop through directories in path
   int i = 0;
   while(path[i] != NULL && path[i + 1] != NULL)
   {
     if(directory != NULL) 
     {
+      //lookup next directory
       dir_lookup(directory, path[i], &inode);
       if(inode == NULL)
       {
         return false;
       }
+      //close previous directory
       dir_close(directory);
+      //open new directory
       directory = dir_open(inode);
     }
     else
@@ -205,18 +231,25 @@ bool filesys_chdir(const char *dir)
   }
   if(directory == NULL)
     return false;
+
+  //lookup last directory which cwd is to be set to
   dir_lookup(directory, path[i], &inode);
   dir_close(directory);
   directory = dir_open(inode);
   if(directory == NULL) {
     return false;
   }
+
+  //set cwd and close directory
   thread_current()->cwd = dir_reopen(directory);
   dir_close(directory);
   return true;
 
 }
 
+/* Method to create a new directory, similar to filesys>create.
+  Returns true if successful and false otherwise
+*/
 bool mkdir(const char *directory)
 {
   block_sector_t inode_sector = 0;
@@ -226,21 +259,26 @@ bool mkdir(const char *directory)
   if(directory[0] != '/') //relative path
     dir = dir_reopen(thread_current()->cwd);
 
+  //get tokenized path name
   char ** path = get_path(directory);
   if(path == NULL) {
     return false;
   }
 
+  //loop through directories in path
   int i = 0;
   while(path[i + 1] != NULL) {
     if(dir != NULL) 
     {
+      //lookup next directory
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
         break;
       }
+      //close previous directory
       dir_close(dir);
+      //open new directory
       dir = dir_open(inode);
     }
     else
@@ -257,22 +295,12 @@ bool mkdir(const char *directory)
                   && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
-  if(success)
-  {
-    dir_lookup(dir, path[i], &inode);
-    dir_close(dir);
-    dir = dir_open(inode);
-    inode_deny_write(inode);
-  }
+
   dir_close (dir);
   free(path);
   return success;
 }
 
-bool isdir(struct file *file)
-{
-  return false;
-}
 
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
