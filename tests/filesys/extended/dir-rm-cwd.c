@@ -28,7 +28,6 @@ test_main (void)
 
   root_fd = wrap_open ("/");
   CHECK (mkdir ("a"), "mkdir \"a\"");
-
   a_fd0 = wrap_open ("/a");
   CHECK (!readdir (a_fd0, name), "verify \"/a\" is empty");
   CHECK (inumber (root_fd) != inumber (a_fd0),

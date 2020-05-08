@@ -189,6 +189,10 @@ filesys_open (const char *name)
   if(dir != NULL && path[i] != NULL) {
     dir_lookup(dir, path[i], &inode);
   }
+  else if(dir != NULL)
+  {
+    inode = inode_open(ROOT_DIR_SECTOR);
+  }
   dir_close(dir);
   free(path);
 
@@ -256,7 +260,7 @@ bool filesys_chdir(const char *dir)
 
 //Viren done driving
 //Jordan driving now.
-/* Method to create a new directory, similar to filesys>create.
+/* Method to create a new directory, similar to filesys_create.
   Returns true if successful and false otherwise
 */
 bool mkdir(const char *directory)
@@ -324,22 +328,26 @@ filesys_remove (const char *name)
   struct dir *temp_dir;
   if(name[0] != '/') //relative path
     directory = dir_reopen(thread_current()->cwd);
+  //get tokenized path name
   char ** path = get_path(name);
   if(path == NULL)
     return false;
   
-  
+  //loop through directories in path
   int i = 0;
   while(path[i] != NULL && path[i + 1] != NULL)
   {
     if(directory != NULL) 
     {
+      //lookup next directory
       dir_lookup(directory, path[i], &inode);
       if(inode == NULL)
       {
         return false;
       }
+      //close previous directory
       dir_close(directory);
+      //open new directory
       directory = dir_open(inode);
     }
     else
@@ -353,6 +361,8 @@ filesys_remove (const char *name)
   {
     return false;
   }
+
+  // This is where we loop up the last directory
   char *temp_name_still = path[i];
   if(temp_name_still != NULL) 
   {
@@ -362,6 +372,8 @@ filesys_remove (const char *name)
 
   char *temp_name = palloc_get_page(PAL_USER);
 
+  // Here we check to see that the directory can be removed
+  // and that it doesn't have any entries inside it.
   bool success = directory != NULL && temp_name_still != NULL &&
   !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
   dir_close (directory); 

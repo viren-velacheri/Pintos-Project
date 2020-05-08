@@ -780,15 +780,9 @@ inode_length (const struct inode *inode)
 }
 
 /* Returns whether the inode is a directory or not */
-bool inodeisdir(const struct inode *inode)
+bool inode_is_dir(const struct inode *inode)
 {
   return inode->data.isdir;
-}
-
-/* Returns the sector number for inode */
-int inumber(const struct inode *inode)
-{
-  return inode->sector;
 }
 
 // Viren done driving

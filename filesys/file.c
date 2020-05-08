@@ -100,7 +100,7 @@ file_write (struct file *file, const void *buffer, off_t size)
   //Viren driving here
   // If inode is a directory, a write cannot be done.
   // That is why this check is done.
-  if(inodeisdir(file->inode))
+  if(inode_is_dir(file->inode))
   {
     return -1;
   }

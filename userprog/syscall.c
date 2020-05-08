@@ -448,7 +448,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       // Otherwise, cast specfiied file to a directory and then 
       // the return value is result of dir_readdir call with
       // respective directory and its name passed in.
-      if(!inodeisdir(file_get_inode(file_to_readdir)))
+      if(!inode_is_dir(file_get_inode(file_to_readdir)))
       {
         exit(ERROR);
       }
@@ -474,7 +474,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       // when such a thing happens.
       file_exist_check(file_to_isdir);
       // Simply call our inodeisdir method here.
-      f->eax = inodeisdir(file_get_inode(file_to_isdir));
+      f->eax = inode_is_dir(file_get_inode(file_to_isdir));
     
     // Brock done driving,
     // Viren driving now.
@@ -491,8 +491,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       // was closed earlier, so exit with -1 error status
       // when such a thing happens.
       file_exist_check(file_to_inumber);
-      // Simple call our inumber method here.
-      f->eax = inumber(file_get_inode(file_to_inumber));
+      // Simply call the inumber method here.
+      f->eax = inode_get_inumber(file_get_inode(file_to_inumber));
   }
   // End of Viren driving
 }
