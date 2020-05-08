@@ -23,6 +23,7 @@
 #define NOT_FOUND -1
 
 
+//Brock driving now.
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
@@ -77,7 +78,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
         return NOT_FOUND;
     }
     //index is an indirect block
-    else if (pos / BLOCK_SECTOR_SIZE < 3200)
+    else if (pos / BLOCK_SECTOR_SIZE < INDIRECT_BLOCKS * INDIRECT_POINTERS)
     {
       //get index of pos in the indirect array
       int indirect_index = (pos / BLOCK_SECTOR_SIZE - DIRECT_BLOCKS)
@@ -99,7 +100,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
     //index is in double indirect block
     else
     {
-      void* buff = malloc(512);
+      void* buff = malloc(BLOCK_SECTOR_SIZE);
       //get index of pos in the double indirect block
       int indirect_index = pos / BLOCK_SECTOR_SIZE / INDIRECT_POINTERS;
       //get index of pos within the block at indirect index
@@ -107,12 +108,12 @@ byte_to_sector (const struct inode *inode, off_t pos)
       //read in the double indirect block
       block_read(fs_device, inode->data.double_indirect, buff);
       //set buff to indirect index
-      buff += indirect_index * 4;
-      void* buff2 = malloc(512);
+      buff += indirect_index * sizeof(block_sector_t);
+      void* buff2 = malloc(BLOCK_SECTOR_SIZE);
       //read in the indirect block at buff
       block_read(fs_device, *(block_sector_t *)buff, buff2);
       //set buff2 to direct index
-      buff2 += direct_index * 4;
+      buff2 += direct_index * sizeof(block_sector_t);
       //return block_sector_t of direct index
       return *(block_sector_t *)buff2;
     }
@@ -122,6 +123,9 @@ byte_to_sector (const struct inode *inode, off_t pos)
   {
     return NOT_FOUND;
   }
+
+  //End of Brock driving
+  //Viren driving now
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -194,6 +198,8 @@ inode_create (block_sector_t sector, off_t length, int isdir)
           break;  
         }
       }
+      //End of Viren Driving
+      //Jordan driving now.
       //loop through indirect blocks until all have been allocated or
       //sectors number of blocks are allocated
       int d = 0;
@@ -202,7 +208,7 @@ inode_create (block_sector_t sector, off_t length, int isdir)
         //allocate an indirect block
         if (free_map_allocate (1, &disk_inode->indirect[d]))
         {
-          block_sector_t indirect_sectors[128];
+          block_sector_t indirect_sectors[INDIRECT_POINTERS];
           //only some of indirect block must be allocated
           if(sectors <= INDIRECT_POINTERS)
           {
@@ -233,6 +239,8 @@ inode_create (block_sector_t sector, off_t length, int isdir)
             //rewrite to disk
             block_write(fs_device, disk_inode->indirect[d], indirect_sectors);
           }
+          //End of Jordan driving,
+          //Jasper driving now.
           //fill indirect block entirely
           else 
           {
@@ -265,6 +273,8 @@ inode_create (block_sector_t sector, off_t length, int isdir)
           success = false;
           sectors = 0;
         }
+        //End of Jasper driving.
+        //Brock driving now.
       }
 
       //must allocate double indirect block
@@ -387,7 +397,8 @@ inode_get_inumber (const struct inode *inode)
 {
   return inode->sector;
 }
-
+//End of Brock driving
+//Viren driving now.
 /* Closes INODE and writes it to disk. (Does it?  Check code.)
    If this was the last reference to INODE, frees its memory.
    If INODE was also a removed inode, frees its blocks. */
@@ -487,6 +498,8 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   return bytes_read;
 }
 
+//End of Viren driving
+//Jordan driving now.
 /*Method that grows the file associated with inode to offset length
 and returns the block_sector_t of the block at offset
 */
@@ -545,8 +558,10 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       inode->data.length += num_written;
     }
     block_sector_t return_block;
+    //Jordan done driving
+    //Jasper driving now
     //block index is in indirect blocks array
-    if(i < 3200 || num_sectors > 0)
+    if(i < INDIRECT_BLOCKS * INDIRECT_POINTERS || num_sectors > 0)
     {
       //index in indirect blocks array
       int j = (inode->data.length / BLOCK_SECTOR_SIZE - DIRECT_BLOCKS)
@@ -605,7 +620,8 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       //update length for each new allocation
       inode->data.length += num_written;
     }
-
+    //Jasper done driving
+    //Brock driving now
     //double indirect allocation necessary
 
     //indirect index withing double indirect block
@@ -623,12 +639,12 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
         //allocate new direct block
         if(free_map_allocate(1, &block))
         {
-          void *buff = malloc(512);
+          void *buff = malloc(BLOCK_SECTOR_SIZE);
           block_read(fs_device, inode->data.double_indirect, buff);
-          buff += indirect_index * 4;
-          void *buff2 = malloc(512);
+          buff += indirect_index * sizeof(block_sector_t);
+          void *buff2 = malloc(BLOCK_SECTOR_SIZE);
           block_read(fs_device, *(block_sector_t *)buff, buff2);
-          buff2 += direct_index *4;
+          buff2 += direct_index * sizeof(block_sector_t);
           block_write(fs_device, *(block_sector_t *)buff2, &block);
           block_write(fs_device, block, zeros);
           return_block = block;
@@ -644,7 +660,8 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
       if(num_sectors > 0) {
         block_sector_t block2;
         if(free_map_allocate(1, &block2)) {
-          block_write(fs_device, inode->data.double_indirect + indirect_index *4, &block2);
+          block_write(fs_device, inode->data.double_indirect + 
+          indirect_index * sizeof(block_sector_t), &block2);
           direct_index = 0;
         }
         else
@@ -657,8 +674,11 @@ block_sector_t file_growth(struct inode *inode, off_t offset)
     block_write(fs_device, inode->sector, &inode->data);
     return return_block;
   }
+
 }
 
+//Brock done driving
+//Viren driving now.
 /* Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
    Returns the number of bytes actually written, which may be
    less than SIZE if end of file is reached or an error occurs.
@@ -770,3 +790,5 @@ int inumber(const struct inode *inode)
 {
   return inode->sector;
 }
+
+// Viren done driving

@@ -44,7 +44,8 @@ filesys_done (void)
 {
   free_map_close ();
 }
-
+
+//Jordan driving here
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
@@ -101,6 +102,8 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+//Jordan done driving
+// Jasper driving now
 /* Method that takes in a string name and tokenizes it using
   a '/' delimiter, putting the elements of the path into an array
   that is returned, NULL is returned on an error
@@ -131,6 +134,8 @@ char ** get_path(const char *name)
   return temp_args;
 }
 
+//End of Jasper driving
+//Brock driving now
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
@@ -190,6 +195,8 @@ filesys_open (const char *name)
   return file_open (inode);
 }
 
+//Brock done driving
+//Viren driving now
 /* Method to change the calling thread's current working directory
   to dir. Returns true if successful and false otherwise
 */
@@ -247,6 +254,8 @@ bool filesys_chdir(const char *dir)
 
 }
 
+//Viren done driving
+//Jordan driving now.
 /* Method to create a new directory, similar to filesys>create.
   Returns true if successful and false otherwise
 */
@@ -301,7 +310,8 @@ bool mkdir(const char *directory)
   return success;
 }
 
-
+//Jordan done driving
+// Jasper driving now
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
@@ -358,15 +368,16 @@ filesys_remove (const char *name)
 
   // char *temp_name = palloc_get_page(PAL_USER);
 
-  //bool success = directory != NULL && temp_name_still != NULL && !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
-  //bool success = directory != NULL && path[i] != NULL && dir_remove (directory, path[i]);
+  //bool success = directory != NULL && temp_name_still != NULL &&
+  // !dir_readdir(temp_dir, temp_name) && 
+  // dir_remove (directory, temp_name_still);
+  //bool success = directory != NULL && path[i] != NULL
+  // && dir_remove (directory, path[i]);
   bool success = directory != NULL && dir_remove(directory, name);
   dir_close (directory); 
-  // dir_close(temp_dir);
-  //free(path);
-  // palloc_free_page(temp_name);
   return success;
 }
+//Jasper done driving
 
 /* Formats the file system. */
 static void
