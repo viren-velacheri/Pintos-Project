@@ -281,41 +281,41 @@ bool isdir(struct file *file)
 bool
 filesys_remove (const char *name) 
 {
-  struct inode *inode;
+  //struct inode *inode;
   struct dir *directory = dir_open_root ();
   // struct dir *temp_dir;
-  if(name[0] != '/') //relative path
-    directory = dir_reopen(thread_current()->cwd);
-  //printf("cwd: %p\n", directory);
-  char ** path = get_path(name);
-  if(path == NULL)
-    return false;
+  // if(name[0] != '/') //relative path
+  //   directory = dir_reopen(thread_current()->cwd);
+  // //printf("cwd: %p\n", directory);
+  // char ** path = get_path(name);
+  // if(path == NULL)
+  //   return false;
   
   
-  int i = 0;
-  // if(path[i] != NULL)
+  // int i = 0;
+  // // if(path[i] != NULL)
+  // // {
+  // //   dir_lookup(path[i], )
+  // // }
+  // while(path[i] != NULL && path[i + 1] != NULL)
   // {
-  //   dir_lookup(path[i], )
+  //   //printf("Path: %s\n", path[i]);
+  //   if(directory != NULL) 
+  //   {
+  //     dir_lookup(directory, path[i], &inode);
+  //     if(inode == NULL)
+  //     {
+  //       return false;
+  //     }
+  //     dir_close(directory);
+  //     directory = dir_open(inode);
+  //   }
+  //   else
+  //   {
+  //     return false;
+  //   }
+  //   i++;
   // }
-  while(path[i] != NULL && path[i + 1] != NULL)
-  {
-    //printf("Path: %s\n", path[i]);
-    if(directory != NULL) 
-    {
-      dir_lookup(directory, path[i], &inode);
-      if(inode == NULL)
-      {
-        return false;
-      }
-      dir_close(directory);
-      directory = dir_open(inode);
-    }
-    else
-    {
-      return false;
-    }
-    i++;
-  }
 
   // if(directory == NULL)
   // {
@@ -331,10 +331,11 @@ filesys_remove (const char *name)
   // char *temp_name = palloc_get_page(PAL_USER);
 
   //bool success = directory != NULL && temp_name_still != NULL && !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
-  bool success = directory != NULL && path[i] != NULL && dir_remove (directory, path[i]);
+  //bool success = directory != NULL && path[i] != NULL && dir_remove (directory, path[i]);
+  bool success = directory != NULL && dir_remove(directory, name);
   dir_close (directory); 
   // dir_close(temp_dir);
-  free(path);
+  //free(path);
   // palloc_free_page(temp_name);
   return success;
 }
