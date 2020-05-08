@@ -62,27 +62,16 @@ filesys_create (const char *name, off_t initial_size)
 
   char ** path = get_path(name);
   if(path == NULL) {
-    //printf("null path\n");
     return false;
   }
 
-  // int j = 0;
-  // while(path[j] != NULL) {
-  //   printf("path[i]: %s\n", path[j]);
-  //   j++;
-  // }
   int i = 0;
   while(path[i + 1] != NULL) {
-    //ASSERT(0);
     if(dir != NULL) 
     {
-      //printf("path: %s\n", path[i]);
-      //printf("path + 1: %s\n", path[i + 1]);
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
-       // printf("INODE IS NULL \n");
-       
         break;
       }
       dir_close(dir);
@@ -102,13 +91,6 @@ filesys_create (const char *name, off_t initial_size)
                   && dir_add (dir, path[i], inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
-  // if(isdir) {
-  //   dir_lookup(dir, path[i], &inode);
-  //   dir_close(dir);
-  //   dir = dir_open(inode);
-  //   printf("inode: %p\n", inode);
-  //   //dir->inode->deny_write_cnt++;
-  // }
   dir_close (dir);
   free(path);
   return success;
@@ -117,16 +99,13 @@ filesys_create (const char *name, off_t initial_size)
 char ** get_path(const char *name)
 {
   char** temp_args = malloc(strlen(name));
-      //ASSERT(0);
   if(temp_args == NULL)
   {
-    // printf("This 1\n");
     return NULL;
   }
   char* name_copy = malloc(strlen(name) + 1);
   if(name_copy == NULL)
   {
-    // printf("This 2\n");
     return NULL;
   }
   memcpy(name_copy, name, strlen(name) + 1);
@@ -137,11 +116,9 @@ char ** get_path(const char *name)
         token = strtok_r (NULL, "/", &save_ptr))
   {
     temp_args[argc] = token;
-    //printf("Names: %s \n", temp_args[argc]);
     argc++; 
   }
   temp_args[argc] = NULL;
-  //free(name_copy);
   return temp_args;
 }
 
@@ -153,31 +130,23 @@ char ** get_path(const char *name)
 struct file *
 filesys_open (const char *name)
 {
-  //printf("Name:  %s\n", name);
   struct dir *dir = dir_open_root ();
-  //printf("dir: %p\n", dir);
   if(name[0] != '/') //relative path
     dir = dir_reopen(thread_current()->cwd);
-  //printf("new dir: %p\n", dir);
   struct inode *inode = NULL;
 
   char ** path = get_path(name);
-  //printf("path[0]: %s\n", path[0]);
   if(path == NULL)
     return NULL;
-  //printf("path: %s\n", path[0]);
   int i = 0;
-  //printf("count: %d\n", i);
   while(path[i] != NULL && path[i + 1] != NULL)
   {
-    //printf("in while\n");
     if(dir != NULL) 
     {
       if(path[i] == '.') 
       {
         dir = dir_reopen(thread_current()->cwd);
       }
-      //else if(path[i] == '..')
       else{
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
@@ -196,15 +165,10 @@ filesys_open (const char *name)
   }
   if(dir != NULL && path[i] != NULL) {
     dir_lookup(dir, path[i], &inode);
-    //printf("b's inode: %p\n", inode);
   }
   dir_close(dir);
-  // if (dir != NULL)
-  //   dir_lookup (dir, name, &inode);
-  // dir_close (dir);
   free(path);
   struct file *f = file_open (inode);
-  //printf("file: %p\n", f);
   return f;
 }
 
@@ -214,10 +178,8 @@ bool filesys_chdir(const char *dir)
   struct inode *inode = NULL;
   
   struct dir *directory = dir_open_root();
-  //printf("root dir: %p\n", directory);
   if(dir[0] != '/') //relative path
     directory = dir_reopen(thread_current()->cwd);
-  //printf("cwd: %p\n", directory);
   char ** path = get_path(dir);
   if(path == NULL)
     return false;
@@ -243,13 +205,10 @@ bool filesys_chdir(const char *dir)
   }
   if(directory == NULL)
     return false;
-  //printf("opening b: %s\n", path[i]);
-  //printf("cwd: %p\n", directory);
   dir_lookup(directory, path[i], &inode);
   dir_close(directory);
   directory = dir_open(inode);
   if(directory == NULL) {
-    //printf("dir is null\n");
     return false;
   }
   thread_current()->cwd = dir_reopen(directory);
@@ -260,7 +219,6 @@ bool filesys_chdir(const char *dir)
 
 bool mkdir(const char *directory)
 {
-  //printf("name: %s\n", name);
   block_sector_t inode_sector = 0;
   struct inode *inode = NULL;
   
@@ -270,27 +228,16 @@ bool mkdir(const char *directory)
 
   char ** path = get_path(directory);
   if(path == NULL) {
-    //printf("null path\n");
     return false;
   }
 
-  // int j = 0;
-  // while(path[j] != NULL) {
-  //   printf("path[i]: %s\n", path[j]);
-  //   j++;
-  // }
   int i = 0;
   while(path[i + 1] != NULL) {
-    //ASSERT(0);
     if(dir != NULL) 
     {
-      //printf("path: %s\n", path[i]);
-      //printf("path + 1: %s\n", path[i + 1]);
       dir_lookup(dir, path[i], &inode);
       if(inode == NULL)
       {
-       // printf("INODE IS NULL \n");
-       
         break;
       }
       dir_close(dir);
@@ -317,13 +264,6 @@ bool mkdir(const char *directory)
     dir = dir_open(inode);
     inode_deny_write(inode);
   }
-  // if(isdir) {
-  //   dir_lookup(dir, path[i], &inode);
-  //   dir_close(dir);
-  //   dir = dir_open(inode);
-  //   printf("inode: %p\n", inode);
-  //   //dir->inode->deny_write_cnt++;
-  // }
   dir_close (dir);
   free(path);
   return success;
@@ -332,8 +272,6 @@ bool mkdir(const char *directory)
 bool isdir(struct file *file)
 {
   return false;
-  // struct inode *i = file_get_inode (file);
-  // return i->data.isdir;
 }
 
 /* Deletes the file named NAME.

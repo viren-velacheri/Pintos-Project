@@ -401,7 +401,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       //accessing the file system
       file_close(file_to_close);
       break;
-
+    
+    /* This System call changes the current working directory to specified 
+    directory, be it relative or absolute path. True returned if successful,
+    false otherwise. */
     case SYS_CHDIR:
       temp_esp += sizeof(int);
       valid_pointer_check(temp_esp);
@@ -410,6 +413,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = filesys_chdir(dir);
       break;
     
+    /* This system call creates a directory. True returned if successful,
+    false otherwise. */
     case SYS_MKDIR:
       temp_esp += sizeof(int);
       valid_pointer_check(temp_esp);
