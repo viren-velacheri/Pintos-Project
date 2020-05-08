@@ -402,6 +402,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_close(file_to_close);
       break;
     
+    // Viren done driving,
+    // Jordan driving now.
     /* This System call changes the current working directory to specified 
     directory, be it relative or absolute path. True returned if successful,
     false otherwise. */
@@ -422,7 +424,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       valid_pointer_check(dir_mk);
       f->eax = mkdir(dir_mk);
       break;
-
+    
+    //Jordan done driving,
+    // Jasper driving now.
+    /* This system call reads a directory based on the given file descriptor 
+    passed in. Returns true if done right, false otherwise.*/
     case SYS_READDIR:
       temp_esp += sizeof(int);
       valid_pointer_check(temp_esp);
@@ -438,6 +444,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       // was closed earlier, so exit with -1 error status
       // when such a thing happens.
       file_exist_check(file_to_readdir);
+      // If inode is not a directory, we exit with -1 error status.
+      // Otherwise, cast specfiied file to a directory and then 
+      // the return value is result of dir_readdir call with
+      // respective directory and its name passed in.
       if(!inodeisdir(file_get_inode(file_to_readdir)))
       {
         exit(ERROR);
@@ -447,7 +457,11 @@ syscall_handler (struct intr_frame *f UNUSED)
         struct dir* dir_readir = (struct dir*) file_to_readdir;
         f->eax = dir_readdir(dir_readir, name_readdir);
       }
-
+    
+    // Jasper done driving,
+    // Brock driving now.
+    /* This system call returns whether the given file based on the file
+    descriptor is a directory (true returned) or a file (false is returned) */
     case SYS_ISDIR:
       temp_esp += sizeof(int);
       valid_pointer_check(temp_esp);
@@ -459,8 +473,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       // was closed earlier, so exit with -1 error status
       // when such a thing happens.
       file_exist_check(file_to_isdir);
+      // Simply call our inodeisdir method here.
       f->eax = inodeisdir(file_get_inode(file_to_isdir));
-
+    
+    // Brock done driving,
+    // Viren driving now.
+    /* This system call returns the inode number of the inode
+    corresponding with the given file descriptor. */
     case SYS_INUMBER:
       temp_esp += sizeof(int);
       valid_pointer_check(temp_esp);
@@ -472,12 +491,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       // was closed earlier, so exit with -1 error status
       // when such a thing happens.
       file_exist_check(file_to_inumber);
+      // Simple call our inumber method here.
       f->eax = inumber(file_get_inode(file_to_inumber));
-
-
-
-
   }
-
-  //Viren done driving
+  // End of Viren driving
 }
