@@ -324,20 +324,14 @@ filesys_remove (const char *name)
   struct dir *temp_dir;
   if(name[0] != '/') //relative path
     directory = dir_reopen(thread_current()->cwd);
-  //printf("cwd: %p\n", directory);
   char ** path = get_path(name);
   if(path == NULL)
     return false;
   
   
   int i = 0;
-  // if(path[i] != NULL)
-  // {
-  //   dir_lookup(path[i], )
-  // }
   while(path[i] != NULL && path[i + 1] != NULL)
   {
-    //printf("Path: %s\n", path[i]);
     if(directory != NULL) 
     {
       dir_lookup(directory, path[i], &inode);
@@ -370,13 +364,8 @@ filesys_remove (const char *name)
 
   bool success = directory != NULL && temp_name_still != NULL &&
   !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
- // bool success = directory != NULL && path[i] != NULL
- // && dir_remove (directory, path[i]);
- // bool success = directory != NULL && dir_remove(directory, name);
   dir_close (directory); 
   dir_close(temp_dir);
- // free(path);
- // palloc_free_page(temp_name);
   return success;
 }
 //Jasper done driving
