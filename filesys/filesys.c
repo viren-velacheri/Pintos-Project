@@ -369,12 +369,14 @@ filesys_remove (const char *name)
   // char *temp_name = palloc_get_page(PAL_USER);
 
   //bool success = directory != NULL && temp_name_still != NULL &&
-  // !dir_readdir(temp_dir, temp_name) && 
-  // dir_remove (directory, temp_name_still);
+  // !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
   //bool success = directory != NULL && path[i] != NULL
   // && dir_remove (directory, path[i]);
   bool success = directory != NULL && dir_remove(directory, name);
   dir_close (directory); 
+  // dir_close(temp_dir);
+  //free(path);
+  // palloc_free_page(temp_name);
   return success;
 }
 //Jasper done driving
