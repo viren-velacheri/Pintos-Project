@@ -8,6 +8,7 @@
 #include "filesys/directory.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/palloc.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -342,10 +343,61 @@ bool isdir(struct file *file)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
+  struct inode *inode;
+  struct dir *directory = dir_open_root ();
+  // struct dir *temp_dir;
+  if(name[0] != '/') //relative path
+    directory = dir_reopen(thread_current()->cwd);
+  //printf("cwd: %p\n", directory);
+  char ** path = get_path(name);
+  if(path == NULL)
+    return false;
+  
+  
+  int i = 0;
+  // if(path[i] != NULL)
+  // {
+  //   dir_lookup(path[i], )
+  // }
+  while(path[i] != NULL && path[i + 1] != NULL)
+  {
+    //printf("Path: %s\n", path[i]);
+    if(directory != NULL) 
+    {
+      dir_lookup(directory, path[i], &inode);
+      if(inode == NULL)
+      {
+        return false;
+      }
+      dir_close(directory);
+      directory = dir_open(inode);
+    }
+    else
+    {
+      return false;
+    }
+    i++;
+  }
 
+  // if(directory == NULL)
+  // {
+  //   return false;
+  // }
+  // char *temp_name_still = path[i];
+  // if(temp_name_still != NULL) 
+  // {
+  // dir_lookup(directory, temp_name_still, &inode);
+  // }
+  // temp_dir = dir_open(inode);
+
+  // char *temp_name = palloc_get_page(PAL_USER);
+
+  //bool success = directory != NULL && temp_name_still != NULL && !dir_readdir(temp_dir, temp_name) && dir_remove (directory, temp_name_still);
+  bool success = directory != NULL && path[i] != NULL && dir_remove (directory, path[i]);
+  dir_close (directory); 
+  // dir_close(temp_dir);
+  free(path);
+  // palloc_free_page(temp_name);
   return success;
 }
 
